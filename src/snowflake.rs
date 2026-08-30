@@ -112,6 +112,10 @@ impl<T> Snowflake<T>
 where
     T: Marker,
 {
+    /// Creates a new [`Snowflake`] from a `u64` value.
+    ///
+    /// Snowflakes use a [`NonZeroU64`] internally, so this function will panic if
+    /// the provided value is zero.
     pub const fn new(data: u64) -> Self {
         Self {
             data: NonZeroU64::new(data).expect("Snowflake data must be non-zero"),
@@ -119,10 +123,12 @@ where
         }
     }
 
+    /// Returns the underlying [`NonZeroU64`] value of the snowflake.
     pub fn data(&self) -> NonZeroU64 {
         self.data
     }
 
+    /// Returns the underlying `u64` value of the snowflake.
     pub fn get(&self) -> u64 {
         self.data.get()
     }
