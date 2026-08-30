@@ -1,0 +1,8 @@
+[package]
+name = "nebula"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+twilight-http = "0.17.1"
+twilight-model = "0.17.1"
