@@ -9,9 +9,9 @@ mod tw {
 
 /// A slash command.
 ///
-/// Slash commands can have parameters or subcommands, but not both. A slash
-/// command may subcommands with subcommands, but a subcommand may not have
-/// subcommands.
+/// A command can only have parameters or subcommands. Subcommands may be nested
+/// only two levels deep (command -> group -> subcommand); a subcommand at the
+/// deepest level may only have parameters.
 pub struct Slash {
     name: String,
     description: String,
@@ -23,14 +23,29 @@ pub struct Slash {
 impl Slash {
     /// Creates a new slash command.
     ///
-    /// Slash command names may only contain lowercase letters, underscores, and
-    /// dashes. They must be between 1 and 32 characters long.
+    /// Slash command names must be between 1 and 32 characters long, and has
+    /// [character restrictions](https://docs.discord.com/developers/interactions/application-commands#application-command-object-application-command-naming).
     ///
     /// The description must be between 1 and 100 characters long, but has no
     /// restrictions on the characters it may contain.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the name or description do not meet the
+    /// above length requirements.
     pub fn new(name: impl Into<String>, description: impl Into<String>) -> Self {
         let name = name.into();
         let description = description.into();
+
+        assert!(
+            (1..=32).contains(&name.len()),
+            "command name must be between 1 and 32 characters long"
+        );
+
+        assert!(
+            (1..=100).contains(&description.len()),
+            "command description must be between 1 and 100 characters long"
+        );
 
         Self {
             name,
@@ -42,7 +57,10 @@ impl Slash {
 
     /// Adds a parameter to the slash command.
     ///
-    /// If the command has subcommands, this will panic.
+    /// # Panics
+    ///
+    /// This function will panic if the command has subcommands, as a command
+    /// cannot have both parameters and subcommands.
     pub fn param(mut self, param: impl Into<SlashParam>) -> Self {
         assert!(
             self.subcommands.is_empty(),
@@ -55,8 +73,13 @@ impl Slash {
 
     /// Adds a subcommand to the slash command.
     ///
-    /// If the command has parameters, or if the subcommand has subcommands with
-    /// subcommands, this will panic.
+    /// # Panics
+    ///
+    /// This function will panic if the command has parameters, as a command
+    /// cannot have both parameters and subcommands. It will also panic if the
+    /// subcommand being added has two or more levels of subcommands, as
+    /// subcommand nesting may only be two levels deep (command -> group ->
+    /// subcommand).
     pub fn subcommand(mut self, subcommand: Slash) -> Self {
         assert!(
             self.params.is_empty(),
@@ -77,6 +100,7 @@ impl Slash {
 }
 
 impl From<Slash> for tw::Command {
+    // TODO: allow non-guild commands (https://github.com/jackhexed/nebula/issues/1)
     fn from(value: Slash) -> Self {
         let name = value.name;
         let description = value.description;
@@ -162,32 +186,32 @@ pub enum SlashParam {
 }
 
 impl SlashParam {
-    /// Creates a new text parameter.
+    /// Alias for [`SlashParamText::new`].
     pub fn text(name: impl Into<String>, description: impl Into<String>) -> SlashParamText {
         SlashParamText::new(name, description)
     }
 
-    /// Creates a new integer parameter.
+    /// Alias for [`SlashParamInteger::new`].
     pub fn integer(name: impl Into<String>, description: impl Into<String>) -> SlashParamInteger {
         SlashParamInteger::new(name, description)
     }
 
-    /// Creates a new number parameter.
+    /// Alias for [`SlashParamNumber::new`].
     pub fn number(name: impl Into<String>, description: impl Into<String>) -> SlashParamNumber {
         SlashParamNumber::new(name, description)
     }
 
-    /// Creates a new boolean parameter.
+    /// Alias for [`SlashParamBoolean::new`].
     pub fn boolean(name: impl Into<String>, description: impl Into<String>) -> SlashParamBoolean {
         SlashParamBoolean::new(name, description)
     }
 
-    /// Creates a new user parameter.
+    /// Alias for [`SlashParamUser::new`].
     pub fn user(name: impl Into<String>, description: impl Into<String>) -> SlashParamUser {
         SlashParamUser::new(name, description)
     }
 
-    /// Creates a new role parameter.
+    /// Alias for [`SlashParamRole::new`].
     pub fn role(name: impl Into<String>, description: impl Into<String>) -> SlashParamRole {
         SlashParamRole::new(name, description)
     }
@@ -238,13 +262,46 @@ impl SlashParamText {
     }
 
     /// Sets the minimum length of the text input.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the minimum length is greater than the
+    /// maximum length, or if the minimum length is greater than 6000.
     pub fn min_length(mut self, min_length: u16) -> Self {
+        assert!(
+            min_length <= 6000,
+            "minimum length cannot be greater than 6000"
+        );
+
+        assert!(
+            self.max_length.is_none_or(|max| min_length <= max),
+            "minimum length cannot be greater than maximum length"
+        );
+
         self.min_length = Some(min_length);
         self
     }
 
     /// Sets the maximum length of the text input.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the maximum length is less than the minimum
+    /// length, or if the maximum length is greater than 6000, or if the maximum
+    /// length is 0.
     pub fn max_length(mut self, max_length: u16) -> Self {
+        assert!(max_length != 0, "maximum length cannot be 0");
+
+        assert!(
+            max_length <= 6000,
+            "maximum length cannot be greater than 6000"
+        );
+
+        assert!(
+            self.min_length.is_none_or(|min| max_length >= min),
+            "maximum length cannot be less than minimum length"
+        );
+
         self.max_length = Some(max_length);
         self
     }

@@ -5,10 +5,9 @@ mod tw {
 
 /// Nebula's error type.
 ///
-/// Nebula's errors are not errors that should be programmatically handled, and
-/// should instead be logged and reported. Thus, nebula's error type is a simple
-/// wrapper around a string message, and implements the `std::error::Error`
-/// trait.
+/// Nebula's errors are not errors that should be matched on, and should instead
+/// be logged and reported. Thus, nebula's error type is a simple wrapper around
+/// a string message, and implements the [`std::error::Error`] trait.
 #[derive(Debug)]
 pub struct Error {
     msg: String,
