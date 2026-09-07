@@ -4,6 +4,7 @@ mod error;
 mod model;
 mod shared;
 
+pub mod item;
 pub mod slash;
 pub mod snowflake;
 
