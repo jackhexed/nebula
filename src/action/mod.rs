@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use crate::{
-    Guild, Snowflake, User, cache::Cache, model::ModelCtx, shared::Shared, snowflake::ActionMarker,
+    Guild, Snowflake, User, backend::ResponseSink, cache::Cache, model::ModelCtx, shared::Shared,
+    snowflake::ActionMarker,
 };
 
 mod slash;
@@ -27,6 +28,7 @@ pub enum Action {
 pub struct ActionCtx {
     shared: Arc<Shared>,
     cache: Arc<Cache>,
+    sink: ResponseSink,
 
     action_id: Snowflake<ActionMarker>,
     action_token: Box<str>,
@@ -44,6 +46,11 @@ impl ActionCtx {
     /// Returns a reference to the cache.
     pub fn cache(&self) -> &Arc<Cache> {
         &self.cache
+    }
+
+    /// Returns a reference to the response sink.
+    pub fn sink(&self) -> &ResponseSink {
+        &self.sink
     }
 
     /// Returns the snowflake of the action.
@@ -72,7 +79,7 @@ impl ActionCtx {
     }
 
     /// Parses an action from a twilight interaction.
-    pub fn parse(shared: Arc<Shared>, interaction: tw::Interaction) -> Action {
+    pub fn parse(shared: Arc<Shared>, sink: ResponseSink, interaction: tw::Interaction) -> Action {
         let cache = Cache::new();
 
         let action_id = Snowflake::from(interaction.id);
@@ -90,6 +97,7 @@ impl ActionCtx {
         let action_ctx = Self {
             shared,
             cache,
+            sink,
 
             action_id,
             action_token,
