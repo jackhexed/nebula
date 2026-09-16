@@ -14,6 +14,7 @@ pub struct Error {
 }
 
 impl Error {
+    /// Creates a new error with the given message.
     pub fn new(msg: impl Into<String>) -> Self {
         Self { msg: msg.into() }
     }

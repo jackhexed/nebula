@@ -1,8 +1,9 @@
 use std::{collections::HashMap, ops::Deref};
 
 use crate::{
-    Role, Snowflake, User,
+    Snowflake,
     action::ActionCtx,
+    model::{Role, User},
     snowflake::{RoleMarker, UserMarker},
 };
 
@@ -44,6 +45,11 @@ impl SlashCtx {
     /// Returns the value of an optional argument.
     ///
     /// If the argument is not present, returns `None`.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the argument is present but is not of type
+    /// `T`.
     pub fn optional<'a, T>(&'a self, name: &str) -> Option<T>
     where
         T: From<&'a SlashArg>,
@@ -53,8 +59,10 @@ impl SlashCtx {
 
     /// Returns the value of a required argument.
     ///
-    /// If the argument is not present, panics with a message indicating that
-    /// the required argument is missing.
+    /// # Panics
+    ///
+    /// This function will panic if the argument is not present, or if it is not
+    /// of type `T`.
     pub fn required<'a, T>(&'a self, name: &str) -> T
     where
         T: From<&'a SlashArg>,
@@ -64,42 +72,25 @@ impl SlashCtx {
 
     /// Parses a slash command action from the given action context and command
     /// data.
-    pub fn parse(action_ctx: ActionCtx, data: Box<tw::CommandData>) -> Self {
+    pub(crate) fn parse(action_ctx: ActionCtx, data: Box<tw::CommandData>) -> Self {
         let mut path = data.name;
         let mut options = data.options;
 
-        if let Some(first) = options.first() {
-            if matches!(first.value, tw::CommandOptionValue::SubCommandGroup(..)) {
-                let opt = options.into_iter().next().unwrap();
+        while let Some(opt) = options.pop_if(|opt| {
+            matches!(
+                opt.value,
+                tw::CommandOptionValue::SubCommand(..)
+                    | tw::CommandOptionValue::SubCommandGroup(..)
+            )
+        }) {
+            path.push(' ');
+            path.push_str(&opt.name);
 
-                path.push(' ');
-                path.push_str(&opt.name);
-
-                options = match opt.value {
-                    tw::CommandOptionValue::SubCommandGroup(opts) => opts,
-                    _ => unreachable!(),
-                };
-
-                let opt = options.into_iter().next().unwrap();
-
-                path.push(' ');
-                path.push_str(&opt.name);
-
-                options = match opt.value {
-                    tw::CommandOptionValue::SubCommandGroup(opts) => opts,
-                    _ => unreachable!(),
-                };
-            } else if matches!(first.value, tw::CommandOptionValue::SubCommand(..)) {
-                let opt = options.into_iter().next().unwrap();
-
-                path.push(' ');
-                path.push_str(&opt.name);
-
-                options = match opt.value {
-                    tw::CommandOptionValue::SubCommand(opts) => opts,
-                    _ => unreachable!(),
-                };
-            }
+            options = match opt.value {
+                tw::CommandOptionValue::SubCommand(opts)
+                | tw::CommandOptionValue::SubCommandGroup(opts) => opts,
+                _ => unreachable!(),
+            };
         }
 
         let path = path.into_boxed_str();
@@ -161,8 +152,8 @@ impl SlashArg {
     }
 }
 
-impl<'a> From<&'a SlashArg> for bool {
-    fn from(value: &'a SlashArg) -> Self {
+impl From<&SlashArg> for bool {
+    fn from(value: &SlashArg) -> Self {
         match value {
             SlashArg::Boolean(b) => *b,
             _ => unreachable!("type mismatch: expected boolean"),
@@ -170,8 +161,8 @@ impl<'a> From<&'a SlashArg> for bool {
     }
 }
 
-impl<'a> From<&'a SlashArg> for i64 {
-    fn from(value: &'a SlashArg) -> Self {
+impl From<&SlashArg> for i64 {
+    fn from(value: &SlashArg) -> Self {
         match value {
             SlashArg::Integer(i) => *i,
             _ => unreachable!("type mismatch: expected integer"),
@@ -179,8 +170,8 @@ impl<'a> From<&'a SlashArg> for i64 {
     }
 }
 
-impl<'a> From<&'a SlashArg> for f64 {
-    fn from(value: &'a SlashArg) -> Self {
+impl From<&SlashArg> for f64 {
+    fn from(value: &SlashArg) -> Self {
         match value {
             SlashArg::Number(n) => *n,
             _ => unreachable!("type mismatch: expected number"),
@@ -197,21 +188,15 @@ impl<'a> From<&'a SlashArg> for &'a str {
     }
 }
 
-impl<'a> From<&'a SlashArg> for Box<str> {
-    fn from(value: &'a SlashArg) -> Self {
-        match value {
-            SlashArg::String(s) => s.to_owned(),
-            _ => unreachable!("type mismatch: expected string"),
-        }
+impl From<&SlashArg> for Box<str> {
+    fn from(value: &SlashArg) -> Self {
+        <&str>::from(value).into()
     }
 }
 
-impl<'a> From<&'a SlashArg> for String {
-    fn from(value: &'a SlashArg) -> Self {
-        match value {
-            SlashArg::String(s) => s.to_string(),
-            _ => unreachable!("type mismatch: expected string"),
-        }
+impl From<&SlashArg> for String {
+    fn from(value: &SlashArg) -> Self {
+        <&str>::from(value).into()
     }
 }
 
@@ -224,21 +209,15 @@ impl<'a> From<&'a SlashArg> for &'a User {
     }
 }
 
-impl<'a> From<&'a SlashArg> for User {
-    fn from(value: &'a SlashArg) -> Self {
-        match value {
-            SlashArg::User(user) => user.clone(),
-            _ => unreachable!("type mismatch: expected user"),
-        }
+impl From<&SlashArg> for User {
+    fn from(value: &SlashArg) -> Self {
+        <&User>::from(value).clone()
     }
 }
 
-impl<'a> From<&'a SlashArg> for Snowflake<UserMarker> {
-    fn from(value: &'a SlashArg) -> Self {
-        match value {
-            SlashArg::User(user) => user.id(),
-            _ => unreachable!("type mismatch: expected user"),
-        }
+impl From<&SlashArg> for Snowflake<UserMarker> {
+    fn from(value: &SlashArg) -> Self {
+        <&User>::from(value).id()
     }
 }
 
@@ -251,20 +230,14 @@ impl<'a> From<&'a SlashArg> for &'a Role {
     }
 }
 
-impl<'a> From<&'a SlashArg> for Role {
-    fn from(value: &'a SlashArg) -> Self {
-        match value {
-            SlashArg::Role(role) => role.clone(),
-            _ => unreachable!("type mismatch: expected role"),
-        }
+impl From<&SlashArg> for Role {
+    fn from(value: &SlashArg) -> Self {
+        <&Role>::from(value).clone()
     }
 }
 
-impl<'a> From<&'a SlashArg> for Snowflake<RoleMarker> {
-    fn from(value: &'a SlashArg) -> Self {
-        match value {
-            SlashArg::Role(role) => role.id(),
-            _ => unreachable!("type mismatch: expected role"),
-        }
+impl From<&SlashArg> for Snowflake<RoleMarker> {
+    fn from(value: &SlashArg) -> Self {
+        <&Role>::from(value).id()
     }
 }

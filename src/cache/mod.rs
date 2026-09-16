@@ -18,12 +18,12 @@
 use std::sync::{Arc, Mutex};
 
 /// A cache for storing data retrieved from the discord api.
-pub struct Cache {
+pub(crate) struct Cache {
     inner: Mutex<Inner>,
 }
 
 impl Cache {
-    pub fn new() -> Arc<Self> {
+    pub(crate) fn new() -> Arc<Self> {
         Arc::new(Self {
             inner: Mutex::new(Inner::default()),
         })

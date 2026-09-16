@@ -34,29 +34,29 @@ mod tw {
 /// cases. See the [`Msg`] docs for details.
 #[macro_export]
 macro_rules! msg {
-	($($args:tt)*) => {
-		$crate::msg_go!($crate::item::Msg::new(), $($args)*)
-	};
+    ($($args:tt)*) => {
+        $crate::msg_go!($crate::item::Msg::new(), $($args)*)
+    };
 }
 
 #[doc(hidden)]
 #[macro_export]
 macro_rules! msg_go {
-	($acc:expr $(,)?) => {
-		$acc
-	};
+    ($acc:expr $(,)?) => {
+        $acc
+    };
 
-	($acc:expr, ephemeral: $ephemeral:expr $(, $($rest:tt)*)?) => {
-		$crate::msg_go!($acc.ephemeral($ephemeral) $(, $($rest)*)?)
-	};
+    ($acc:expr, ephemeral: $ephemeral:expr $(, $($rest:tt)*)?) => {
+        $crate::msg_go!($acc.ephemeral($ephemeral) $(, $($rest)*)?)
+    };
 
-	($acc:expr, $($item:expr),+ $(,)?) => {
-		$acc $(.item($item))+
-	};
+    ($acc:expr, $($item:expr),+ $(,)?) => {
+        $acc $(.item($item))+
+    };
 
-	($acc:expr, $($rest:tt)*) => {
-		compile_error!(concat!("unexpected tokens: ", stringify!($($rest)*)));
-	}
+    ($acc:expr, $($rest:tt)*) => {
+        compile_error!(concat!("unexpected tokens: ", stringify!($($rest)*)));
+    }
 }
 
 /// A message the bot displays.
@@ -81,10 +81,7 @@ pub struct Msg {
 impl Msg {
     /// Creates an empty, non-ephemeral message.
     pub fn new() -> Self {
-        Self {
-            items: Vec::new(),
-            ephemeral: false,
-        }
+        Self::default()
     }
 
     /// Appends an item to the message.
@@ -119,20 +116,14 @@ impl Msg {
 impl From<Frame> for Msg {
     /// Converts a [`Frame`] into a [`Msg`].
     fn from(value: Frame) -> Self {
-        Self {
-            items: vec![MsgItem::Frame(value)],
-            ephemeral: false,
-        }
+        Self::new().item(value)
     }
 }
 
 impl From<Row> for Msg {
     /// Converts a [`Row`] into a [`Msg`].
     fn from(value: Row) -> Self {
-        Self {
-            items: vec![MsgItem::Row(value)],
-            ephemeral: false,
-        }
+        Self::new().item(value)
     }
 }
 
@@ -142,70 +133,49 @@ impl From<Button> for Msg {
     /// A button is wrapped in a [`Row`] because a message cannot hold a button
     /// directly.
     fn from(value: Button) -> Self {
-        Self {
-            items: vec![MsgItem::Row(Row::from(value))],
-            ephemeral: false,
-        }
+        Self::new().item(value)
     }
 }
 
 impl From<[Button; 1]> for Msg {
     /// Converts an array of one [`Button`] into a [`Msg`].
     fn from(value: [Button; 1]) -> Self {
-        Self {
-            items: vec![MsgItem::Row(Row::from(value))],
-            ephemeral: false,
-        }
+        Self::new().item(value)
     }
 }
 
 impl From<[Button; 2]> for Msg {
     /// Converts an array of two [`Button`]s into a [`Msg`].
     fn from(value: [Button; 2]) -> Self {
-        Self {
-            items: vec![MsgItem::Row(Row::from(value))],
-            ephemeral: false,
-        }
+        Self::new().item(value)
     }
 }
 
 impl From<[Button; 3]> for Msg {
     /// Converts an array of three [`Button`]s into a [`Msg`].
     fn from(value: [Button; 3]) -> Self {
-        Self {
-            items: vec![MsgItem::Row(Row::from(value))],
-            ephemeral: false,
-        }
+        Self::new().item(value)
     }
 }
 
 impl From<[Button; 4]> for Msg {
     /// Converts an array of four [`Button`]s into a [`Msg`].
     fn from(value: [Button; 4]) -> Self {
-        Self {
-            items: vec![MsgItem::Row(Row::from(value))],
-            ephemeral: false,
-        }
+        Self::new().item(value)
     }
 }
 
 impl From<[Button; 5]> for Msg {
     /// Converts an array of five [`Button`]s into a [`Msg`].
     fn from(value: [Button; 5]) -> Self {
-        Self {
-            items: vec![MsgItem::Row(Row::from(value))],
-            ephemeral: false,
-        }
+        Self::new().item(value)
     }
 }
 
 impl From<Text> for Msg {
     /// Converts a [`Text`] into a [`Msg`].
     fn from(value: Text) -> Self {
-        Self {
-            items: vec![MsgItem::Text(value)],
-            ephemeral: false,
-        }
+        Self::new().item(value)
     }
 }
 
@@ -215,10 +185,7 @@ impl From<String> for Msg {
     /// This conversion wraps the string in a [`Text`], as a message cannot hold
     /// a string directly.
     fn from(value: String) -> Self {
-        Self {
-            items: vec![MsgItem::Text(value.into())],
-            ephemeral: false,
-        }
+        Self::new().item(value)
     }
 }
 
@@ -228,10 +195,7 @@ impl From<&str> for Msg {
     /// This conversion wraps the string in a [`Text`], as a message cannot hold
     /// a string directly.
     fn from(value: &str) -> Self {
-        Self {
-            items: vec![MsgItem::Text(value.into())],
-            ephemeral: false,
-        }
+        Self::new().item(value)
     }
 }
 

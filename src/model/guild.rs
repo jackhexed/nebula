@@ -21,7 +21,7 @@ impl From<&Guild> for Snowflake<GuildMarker> {
 
 impl Guild {
     /// Creates a new guild model type.
-    pub fn new(model_ctx: ModelCtx, guild_id: Snowflake<GuildMarker>) -> Self {
+    pub(crate) fn new(model_ctx: ModelCtx, guild_id: Snowflake<GuildMarker>) -> Self {
         Self {
             model_ctx,
             guild_id,

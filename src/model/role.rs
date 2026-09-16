@@ -26,7 +26,7 @@ impl From<&Role> for Snowflake<RoleMarker> {
 
 impl Role {
     /// Creates a new role model type.
-    pub fn new(
+    pub(crate) fn new(
         model_ctx: ModelCtx,
         guild_id: Snowflake<GuildMarker>,
         role_id: Snowflake<RoleMarker>,

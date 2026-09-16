@@ -21,7 +21,7 @@ impl From<&User> for Snowflake<UserMarker> {
 
 impl User {
     /// Creates a new user model type.
-    pub fn new(model_ctx: ModelCtx, user_id: Snowflake<UserMarker>) -> Self {
+    pub(crate) fn new(model_ctx: ModelCtx, user_id: Snowflake<UserMarker>) -> Self {
         Self { model_ctx, user_id }
     }
 

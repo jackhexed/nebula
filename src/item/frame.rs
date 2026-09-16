@@ -86,11 +86,7 @@ pub struct Frame {
 impl Frame {
     /// Creates an empty frame with no accent color.
     pub fn new() -> Self {
-        Self {
-            items: Vec::new(),
-            color: None,
-            spoiler: false,
-        }
+        Self::default()
     }
 
     /// Appends an item to the frame.

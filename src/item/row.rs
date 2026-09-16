@@ -22,9 +22,9 @@ mod tw {
 /// to build a row whose length is not known until runtime.
 #[macro_export]
 macro_rules! row {
-	($($button:expr),+ $(,)?) => {
-		$crate::item::Row::from([$($button),*])
-	};
+    ($($button:expr),+ $(,)?) => {
+        $crate::item::Row::from([$($button),*])
+    };
 }
 
 /// A horizontal row of up to five [`Button`]s.
@@ -48,9 +48,7 @@ impl Row {
     /// A row with no buttons will error when sent, so at least one button must
     /// be added with [`Row::button`].
     pub fn new() -> Self {
-        Self {
-            buttons: Vec::new(),
-        }
+        Self::default()
     }
 
     /// Appends a button to the row.
@@ -82,7 +80,7 @@ impl From<[Button; 1]> for Row {
     /// Converts an array of one [`Button`] into a [`Row`].
     fn from(value: [Button; 1]) -> Self {
         Self {
-            buttons: value.into_iter().collect(),
+            buttons: Vec::from(value),
         }
     }
 }
@@ -91,7 +89,7 @@ impl From<[Button; 2]> for Row {
     /// Converts an array of two [`Button`]s into a [`Row`].
     fn from(value: [Button; 2]) -> Self {
         Self {
-            buttons: value.into_iter().collect(),
+            buttons: Vec::from(value),
         }
     }
 }
@@ -100,7 +98,7 @@ impl From<[Button; 3]> for Row {
     /// Converts an array of three [`Button`]s into a [`Row`].
     fn from(value: [Button; 3]) -> Self {
         Self {
-            buttons: value.into_iter().collect(),
+            buttons: Vec::from(value),
         }
     }
 }
@@ -109,7 +107,7 @@ impl From<[Button; 4]> for Row {
     /// Converts an array of four [`Button`]s into a [`Row`].
     fn from(value: [Button; 4]) -> Self {
         Self {
-            buttons: value.into_iter().collect(),
+            buttons: Vec::from(value),
         }
     }
 }
@@ -118,7 +116,7 @@ impl From<[Button; 5]> for Row {
     /// Converts an array of five [`Button`]s into a [`Row`].
     fn from(value: [Button; 5]) -> Self {
         Self {
-            buttons: value.into_iter().collect(),
+            buttons: Vec::from(value),
         }
     }
 }

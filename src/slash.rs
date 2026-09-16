@@ -5,6 +5,7 @@ mod tw {
     pub use twilight_model::application::command::CommandOptionValue;
     pub use twilight_model::application::command::CommandType;
     pub use twilight_model::application::interaction::InteractionContextType;
+    pub use twilight_model::id::Id;
 }
 
 /// A slash command.
@@ -38,12 +39,12 @@ impl Slash {
         let description = description.into();
 
         assert!(
-            (1..=32).contains(&name.len()),
+            (1..=32).contains(&name.chars().count()),
             "command name must be between 1 and 32 characters long"
         );
 
         assert!(
-            (1..=100).contains(&description.len()),
+            (1..=100).contains(&description.chars().count()),
             "command description must be between 1 and 100 characters long"
         );
 
@@ -105,15 +106,12 @@ impl From<Slash> for tw::Command {
         let name = value.name;
         let description = value.description;
 
-        let mut options = Vec::new();
-
-        for param in value.params {
-            options.push(param.into());
-        }
-
-        for subcommand in value.subcommands {
-            options.push(subcommand.into());
-        }
+        let options = value
+            .params
+            .into_iter()
+            .map(Into::into)
+            .chain(value.subcommands.into_iter().map(Into::into))
+            .collect();
 
         Self {
             application_id: None,
@@ -131,7 +129,7 @@ impl From<Slash> for tw::Command {
             name_localizations: None,
             nsfw: None,
             options,
-            version: twilight_model::id::Id::new(1),
+            version: tw::Id::new(1),
         }
     }
 }
@@ -140,21 +138,18 @@ impl From<Slash> for tw::CommandOption {
     fn from(value: Slash) -> Self {
         let name = value.name;
         let description = value.description;
-        let kind = if value.params.is_empty() {
-            tw::CommandOptionType::SubCommandGroup
-        } else {
+        let kind = if value.subcommands.is_empty() {
             tw::CommandOptionType::SubCommand
+        } else {
+            tw::CommandOptionType::SubCommandGroup
         };
 
-        let mut options = Vec::new();
-
-        for param in value.params {
-            options.push(param.into());
-        }
-
-        for subcommand in value.subcommands {
-            options.push(subcommand.into());
-        }
+        let options = value
+            .params
+            .into_iter()
+            .map(Into::into)
+            .chain(value.subcommands.into_iter().map(Into::into))
+            .collect();
 
         Self {
             autocomplete: None,

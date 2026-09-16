@@ -44,6 +44,11 @@ impl<T> From<u64> for Snowflake<T>
 where
     T: Marker,
 {
+    /// Converts a `u64` into a [`Snowflake`].
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the value is zero.
     fn from(value: u64) -> Self {
         Self::new(value)
     }
@@ -72,7 +77,7 @@ where
     T: Into<U>,
     U: Marker,
 {
-    fn from(id: twilight_model::id::Id<T>) -> Self {
+    fn from(id: tw::Id<T>) -> Self {
         Self::from(id.into_nonzero())
     }
 }
@@ -82,7 +87,7 @@ where
     T: Into<U>,
     U: Marker,
 {
-    fn from(id: &twilight_model::id::Id<T>) -> Self {
+    fn from(id: &tw::Id<T>) -> Self {
         Self::from(id.into_nonzero())
     }
 }
@@ -113,6 +118,8 @@ where
     T: Marker,
 {
     /// Creates a new [`Snowflake`] from a `u64` value.
+    ///
+    /// # Panics
     ///
     /// Snowflakes use a [`NonZeroU64`] internally, so this function will panic if
     /// the provided value is zero.
@@ -145,16 +152,7 @@ where
 
 macro_rules! marker {
     ($name:ident) => {
-        #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-        pub struct $name;
-
-        impl Marker for $name {}
-
-        impl From<tw::$name> for $name {
-            fn from(_: tw::$name) -> Self {
-                Self
-            }
-        }
+        marker!($name, $name);
     };
 
     ($name:ident, $tw:ident) => {

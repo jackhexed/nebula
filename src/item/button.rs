@@ -25,7 +25,7 @@ mod tw {
 /// ```
 ///
 /// Everything after the style is optional, so a button may be built from a
-/// style alone. However, a button with no label and no emoji will error when
+/// style alone. However, a button with no label and no emoji will panic when
 /// sent.
 ///
 /// ```
@@ -41,44 +41,44 @@ mod tw {
 #[macro_export]
 macro_rules! button {
     (primary: $custom_id:expr $(, $($rest:tt)*)?) => {
-		$crate::button_go!($crate::item::Button::primary($custom_id) $(, $($rest)*)?)
-	};
+        $crate::button_go!($crate::item::Button::primary($custom_id) $(, $($rest)*)?)
+    };
 
-	(secondary: $custom_id:expr $(, $($rest:tt)*)?) => {
-		$crate::button_go!($crate::item::Button::secondary($custom_id) $(, $($rest)*)?)
-	};
+    (secondary: $custom_id:expr $(, $($rest:tt)*)?) => {
+        $crate::button_go!($crate::item::Button::secondary($custom_id) $(, $($rest)*)?)
+    };
 
-	(success: $custom_id:expr $(, $($rest:tt)*)?) => {
-		$crate::button_go!($crate::item::Button::success($custom_id) $(, $($rest)*)?)
-	};
+    (success: $custom_id:expr $(, $($rest:tt)*)?) => {
+        $crate::button_go!($crate::item::Button::success($custom_id) $(, $($rest)*)?)
+    };
 
-	(danger: $custom_id:expr $(, $($rest:tt)*)?) => {
-		$crate::button_go!($crate::item::Button::danger($custom_id) $(, $($rest)*)?)
-	};
+    (danger: $custom_id:expr $(, $($rest:tt)*)?) => {
+        $crate::button_go!($crate::item::Button::danger($custom_id) $(, $($rest)*)?)
+    };
 
-	(link: $url:expr $(, $($rest:tt)*)?) => {
-		$crate::button_go!($crate::item::Button::link($url) $(, $($rest)*)?)
-	};
+    (link: $url:expr $(, $($rest:tt)*)?) => {
+        $crate::button_go!($crate::item::Button::link($url) $(, $($rest)*)?)
+    };
 }
 
 #[doc(hidden)]
 #[macro_export]
 macro_rules! button_go {
-	($acc:expr $(,)?) => {
-		$acc
-	};
+    ($acc:expr $(,)?) => {
+        $acc
+    };
 
-	($acc:expr, disabled: $disabled:expr $(, $($rest:tt)*)?) => {
-		$crate::button_go!($acc.disabled($disabled) $(, $($rest)*)?)
-	};
+    ($acc:expr, disabled: $disabled:expr $(, $($rest:tt)*)?) => {
+        $crate::button_go!($acc.disabled($disabled) $(, $($rest)*)?)
+    };
 
-	($acc:expr, $fmt:literal $(, $($args:tt)*)?) => {
-		$acc.label(format!($fmt $(, $($args)*)?))
-	};
+    ($acc:expr, $fmt:literal $(, $($args:tt)*)?) => {
+        $acc.label(format!($fmt $(, $($args)*)?))
+    };
 
-	($acc:expr, $($rest:tt)*) => {
-		compile_error!(concat!("unexpected tokens: ", stringify!($($rest)*)));
-	}
+    ($acc:expr, $($rest:tt)*) => {
+        compile_error!(concat!("unexpected tokens: ", stringify!($($rest)*)));
+    }
 }
 
 /// A clickable button.
@@ -197,7 +197,7 @@ impl Button {
 
     /// Sets the text displayed on the button.
     ///
-    /// A button with no label and no emoji will error when sent, so a label is
+    /// A button with no label and no emoji will panic when sent, so a label is
     /// usually required.
     ///
     /// # Panics

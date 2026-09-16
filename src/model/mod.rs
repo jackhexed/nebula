@@ -34,24 +34,24 @@ pub use user::User;
 /// Model types use this context to access cache data and to make web requests
 /// through the shared state, as well as to create new model entities.
 #[derive(Clone)]
-pub struct ModelCtx {
+pub(crate) struct ModelCtx {
     shared: Arc<Shared>,
     cache: Arc<Cache>,
 }
 
 impl ModelCtx {
     /// Creates a new model context.
-    pub fn new(shared: Arc<Shared>, cache: Arc<Cache>) -> Self {
+    pub(crate) fn new(shared: Arc<Shared>, cache: Arc<Cache>) -> Self {
         Self { shared, cache }
     }
 
     /// Returns a reference to the shared state.
-    pub fn shared(&self) -> &Arc<Shared> {
+    pub(crate) fn shared(&self) -> &Arc<Shared> {
         &self.shared
     }
 
     /// Returns a reference to the cache.
-    pub fn cache(&self) -> &Arc<Cache> {
+    pub(crate) fn cache(&self) -> &Arc<Cache> {
         &self.cache
     }
 }

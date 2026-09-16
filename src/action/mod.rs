@@ -1,7 +1,12 @@
 use std::sync::Arc;
 
 use crate::{
-    Guild, Snowflake, User, backend::ResponseSink, cache::Cache, model::ModelCtx, shared::Shared,
+    Snowflake,
+    backend::ResponseSink,
+    cache::Cache,
+    model::ModelCtx,
+    model::{Guild, User},
+    shared::Shared,
     snowflake::ActionMarker,
 };
 
@@ -39,17 +44,17 @@ pub struct ActionCtx {
 
 impl ActionCtx {
     /// Returns a reference to the shared state.
-    pub fn shared(&self) -> &Arc<Shared> {
+    pub(crate) fn shared(&self) -> &Arc<Shared> {
         &self.shared
     }
 
     /// Returns a reference to the cache.
-    pub fn cache(&self) -> &Arc<Cache> {
+    pub(crate) fn cache(&self) -> &Arc<Cache> {
         &self.cache
     }
 
     /// Returns a reference to the response sink.
-    pub fn sink(&self) -> &ResponseSink {
+    pub(crate) fn sink(&self) -> &ResponseSink {
         &self.sink
     }
 
@@ -74,12 +79,16 @@ impl ActionCtx {
     }
 
     /// Returns a model context for the action.
-    pub fn model_ctx(&self) -> ModelCtx {
+    pub(crate) fn model_ctx(&self) -> ModelCtx {
         ModelCtx::new(Arc::clone(&self.shared), Arc::clone(&self.cache))
     }
 
     /// Parses an action from a twilight interaction.
-    pub fn parse(shared: Arc<Shared>, sink: ResponseSink, interaction: tw::Interaction) -> Action {
+    pub(crate) fn parse(
+        shared: Arc<Shared>,
+        sink: ResponseSink,
+        interaction: tw::Interaction,
+    ) -> Action {
         let cache = Cache::new();
 
         let action_id = Snowflake::from(interaction.id);

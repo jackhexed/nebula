@@ -6,22 +6,24 @@ use crate::{Error, Snowflake, item::Msg, shared::Shared, snowflake::ActionMarker
 
 mod gateway;
 
+pub use gateway::Gateway;
+
 mod tw {
     pub use twilight_model::http::interaction::{InteractionResponse, InteractionResponseType};
 }
 
-pub struct ResponseSink {
+pub(crate) struct ResponseSink {
     tx: RefCell<Option<oneshot::Sender<ResponseKind>>>,
 }
 
 impl ResponseSink {
-    pub fn new(tx: Option<oneshot::Sender<ResponseKind>>) -> Self {
+    pub(crate) fn new(tx: Option<oneshot::Sender<ResponseKind>>) -> Self {
         Self {
             tx: RefCell::new(tx),
         }
     }
 
-    pub async fn send(&self, shared: &Shared, response: Response<'_>) -> Result<(), Error> {
+    pub(crate) async fn send(&self, shared: &Shared, response: Response<'_>) -> Result<(), Error> {
         if let Some(tx) = self.tx.take() {
             tx.send(response.kind)
                 .map_err(|_| Error::new("oneshot closed unexpectedly"))
@@ -40,7 +42,7 @@ impl ResponseSink {
     }
 }
 
-pub struct Response<'action> {
+pub(crate) struct Response<'action> {
     action_id: Snowflake<ActionMarker>,
     action_token: &'action str,
 
@@ -48,7 +50,7 @@ pub struct Response<'action> {
 }
 
 impl<'action> Response<'action> {
-    pub fn new(
+    pub(crate) fn new(
         action_id: Snowflake<ActionMarker>,
         action_token: &'action str,
         kind: ResponseKind,
@@ -62,7 +64,7 @@ impl<'action> Response<'action> {
     }
 }
 
-pub enum ResponseKind {
+pub(crate) enum ResponseKind {
     Reply(Msg),
     DeferReply,
 }

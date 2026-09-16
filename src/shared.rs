@@ -7,31 +7,31 @@ mod tw {
 }
 
 /// A shared state for the application.
-pub struct Shared {
+pub(crate) struct Shared {
     client: tw::Client,
     app_id: Snowflake<AppMarker>,
 }
 
 impl Shared {
     /// Creates a new shared state with the given token and application ID.
-    pub fn new(token: String, app_id: Snowflake<AppMarker>) -> Arc<Self> {
+    pub(crate) fn new(token: String, app_id: Snowflake<AppMarker>) -> Arc<Self> {
         let client = tw::Client::new(token);
 
         Arc::new(Self { client, app_id })
     }
 
     /// Returns a reference to the underlying Twilight HTTP client.
-    pub fn client(&self) -> &tw::Client {
+    pub(crate) fn client(&self) -> &tw::Client {
         &self.client
     }
 
     /// Returns a reference to the interaction client for the application.
-    pub fn interaction(&self) -> tw::InteractionClient<'_> {
+    pub(crate) fn interaction(&self) -> tw::InteractionClient<'_> {
         self.client.interaction(self.app_id.into())
     }
 
     /// Returns the application ID associated with this shared state.
-    pub fn app_id(&self) -> Snowflake<AppMarker> {
+    pub(crate) fn app_id(&self) -> Snowflake<AppMarker> {
         self.app_id
     }
 }

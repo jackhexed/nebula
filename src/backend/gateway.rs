@@ -6,13 +6,7 @@ use std::sync::{
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
 use twilight_gateway::StreamExt;
 
-use crate::{
-    Error,
-    action::{Action, ActionCtx},
-    backend::ResponseSink,
-    bot::Bot,
-    shared::Shared,
-};
+use crate::{Bot, Error, action::ActionCtx, backend::ResponseSink, shared::Shared};
 
 mod tw {
     pub use twilight_gateway::{CloseFrame, Event, EventTypeFlags, Intents, Shard, ShardId};
