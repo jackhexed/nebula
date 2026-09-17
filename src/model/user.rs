@@ -1,6 +1,10 @@
 use crate::{Snowflake, model::ModelCtx, snowflake::UserMarker};
 
-/// Represents a Discord user.
+/// A Discord user.
+///
+/// See the [module docs](crate::model) for how models work.
+///
+/// [Discord docs](https://docs.discord.com/developers/resources/user#user-object-user-structure)
 #[derive(Clone)]
 pub struct User {
     model_ctx: ModelCtx,
@@ -20,7 +24,7 @@ impl From<&User> for Snowflake<UserMarker> {
 }
 
 impl User {
-    /// Creates a new user model type.
+    /// Creates a user model from its snowflake.
     pub(crate) fn new(model_ctx: ModelCtx, user_id: Snowflake<UserMarker>) -> Self {
         Self { model_ctx, user_id }
     }

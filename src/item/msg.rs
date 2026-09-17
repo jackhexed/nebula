@@ -59,19 +59,16 @@ macro_rules! msg_go {
     }
 }
 
-/// A message the bot displays.
+/// A message the bot sends.
 ///
-/// A message is a collection of up to 40 items. See [`MsgItem`] for what a
-/// message can hold. A message may be ephemeral, meaning it is only visible to
-/// the user who triggered the interaction. Ephemeral messages are not persisted
-/// and cannot be edited once the interaction token expires.
+/// Messages are typically created with the [`msg!`](crate::msg) macro, but some
+/// may prefer the builder methods instead.
 ///
-/// A [`Msg`] can be created with the [`msg!`] macro, or by using the builder
-/// methods directly.
+/// A message holds up to 40 items; see [`MsgItem`] for what it accepts. Any
+/// single item converts into a message holding it, so a [`Frame`], for
+/// example, may be passed anywhere an `impl Into<Msg>` is accepted.
 ///
-/// You can also use the [`From`] implementations to convert a single item into
-/// a [`Msg`]. For example, a [`Frame`] can be used instead of a [`Msg`] in all
-/// functions that accept `impl Into<Msg>`.
+/// [Discord docs](https://docs.discord.com/developers/interactions/receiving-and-responding#interaction-response-object-messages)
 #[derive(Debug, Default)]
 pub struct Msg {
     items: Vec<MsgItem>,
@@ -101,12 +98,12 @@ impl Msg {
         self
     }
 
-    /// Sets whether the message is visible only to the user who triggered the
-    /// interaction.
+    /// Sets whether the message is visible only to the user who performed the
+    /// action.
     ///
-    /// Messages are visible to everyone by default. An ephemeral message cannot
-    /// be seen by anyone else, is not persisted, and cannot be edited once the
-    /// interaction token expires.
+    /// Messages are visible to everyone by default. An ephemeral message is not
+    /// persisted, and cannot be edited once the
+    /// [action's token](crate::action::ActionCtx::action_token) expires.
     pub fn ephemeral(mut self, ephemeral: bool) -> Self {
         self.ephemeral = ephemeral;
         self
@@ -114,91 +111,98 @@ impl Msg {
 }
 
 impl From<Frame> for Msg {
-    /// Converts a [`Frame`] into a [`Msg`].
+    /// Converts a [`Frame`] into a [`Msg`] holding it.
     fn from(value: Frame) -> Self {
         Self::new().item(value)
     }
 }
 
 impl From<Row> for Msg {
-    /// Converts a [`Row`] into a [`Msg`].
+    /// Converts a [`Row`] into a [`Msg`] holding it.
     fn from(value: Row) -> Self {
         Self::new().item(value)
     }
 }
 
 impl From<Button> for Msg {
-    /// Converts a [`Button`] into a [`Msg`].
-    ///
-    /// A button is wrapped in a [`Row`] because a message cannot hold a button
-    /// directly.
+    /// Converts a [`Button`] into a [`Msg`] holding it, wrapped in a [`Row`].
     fn from(value: Button) -> Self {
         Self::new().item(value)
     }
 }
 
 impl From<[Button; 1]> for Msg {
-    /// Converts an array of one [`Button`] into a [`Msg`].
+    /// Converts an array of one [`Button`] into a [`Msg`] holding it, wrapped
+    /// in a [`Row`].
     fn from(value: [Button; 1]) -> Self {
         Self::new().item(value)
     }
 }
 
 impl From<[Button; 2]> for Msg {
-    /// Converts an array of two [`Button`]s into a [`Msg`].
+    /// Converts an array of two [`Button`]s into a [`Msg`] holding them,
+    /// wrapped in a [`Row`].
     fn from(value: [Button; 2]) -> Self {
         Self::new().item(value)
     }
 }
 
 impl From<[Button; 3]> for Msg {
-    /// Converts an array of three [`Button`]s into a [`Msg`].
+    /// Converts an array of three [`Button`]s into a [`Msg`] holding them,
+    /// wrapped in a [`Row`].
     fn from(value: [Button; 3]) -> Self {
         Self::new().item(value)
     }
 }
 
 impl From<[Button; 4]> for Msg {
-    /// Converts an array of four [`Button`]s into a [`Msg`].
+    /// Converts an array of four [`Button`]s into a [`Msg`] holding them,
+    /// wrapped in a [`Row`].
     fn from(value: [Button; 4]) -> Self {
         Self::new().item(value)
     }
 }
 
 impl From<[Button; 5]> for Msg {
-    /// Converts an array of five [`Button`]s into a [`Msg`].
+    /// Converts an array of five [`Button`]s into a [`Msg`] holding them,
+    /// wrapped in a [`Row`].
     fn from(value: [Button; 5]) -> Self {
         Self::new().item(value)
     }
 }
 
 impl From<Text> for Msg {
-    /// Converts a [`Text`] into a [`Msg`].
+    /// Converts a [`Text`] into a [`Msg`] holding it.
     fn from(value: Text) -> Self {
         Self::new().item(value)
     }
 }
 
 impl From<String> for Msg {
-    /// Converts a [`String`] into a [`Msg`].
+    /// Converts a [`String`] into a [`Msg`] holding it, wrapped in a [`Text`].
     ///
-    /// This conversion wraps the string in a [`Text`], as a message cannot hold
-    /// a string directly.
+    /// # Panics
+    ///
+    /// This function will panic if the string is not between 1 and 4000
+    /// characters long.
     fn from(value: String) -> Self {
         Self::new().item(value)
     }
 }
 
 impl From<&str> for Msg {
-    /// Converts a `&str` into a [`Msg`].
+    /// Converts a `&str` into a [`Msg`] holding it, wrapped in a [`Text`].
     ///
-    /// This conversion wraps the string in a [`Text`], as a message cannot hold
-    /// a string directly.
+    /// # Panics
+    ///
+    /// This function will panic if the string is not between 1 and 4000
+    /// characters long.
     fn from(value: &str) -> Self {
         Self::new().item(value)
     }
 }
 
+#[doc(hidden)]
 impl From<Msg> for tw::InteractionResponseData {
     fn from(value: Msg) -> Self {
         let flags = if value.ephemeral {
@@ -231,15 +235,20 @@ impl From<Msg> for tw::InteractionResponseData {
 ///
 /// * [`Frame`]
 /// * [`Row`]
-///     * [`Button`](crate::item::Button)
+///     * [`Button`]
 ///     * `[Button; 1..=5]`
 /// * [`Text`]
 ///     * [`String`]
 ///     * `&str`
 #[derive(Debug)]
 pub enum MsgItem {
+    /// A [`Frame`].
     Frame(Frame),
+
+    /// A [`Row`].
     Row(Row),
+
+    /// A [`Text`].
     Text(Text),
 }
 
@@ -258,45 +267,47 @@ impl From<Row> for MsgItem {
 }
 
 impl From<Button> for MsgItem {
-    /// Converts a [`Button`] into a [`MsgItem`].
-    ///
-    /// A button is wrapped in a [`Row`] because a message cannot hold a button
-    /// directly.
+    /// Converts a [`Button`] into a [`MsgItem`] by wrapping it in a [`Row`].
     fn from(value: Button) -> Self {
         Self::Row(Row::from(value))
     }
 }
 
 impl From<[Button; 1]> for MsgItem {
-    /// Converts an array of one [`Button`] into a [`MsgItem`].
+    /// Converts an array of one [`Button`] into a [`MsgItem`] by wrapping it in
+    /// a [`Row`].
     fn from(value: [Button; 1]) -> Self {
         Self::Row(Row::from(value))
     }
 }
 
 impl From<[Button; 2]> for MsgItem {
-    /// Converts an array of two [`Button`]s into a [`MsgItem`].
+    /// Converts an array of two [`Button`]s into a [`MsgItem`] by wrapping them
+    /// in a [`Row`].
     fn from(value: [Button; 2]) -> Self {
         Self::Row(Row::from(value))
     }
 }
 
 impl From<[Button; 3]> for MsgItem {
-    /// Converts an array of three [`Button`]s into a [`MsgItem`].
+    /// Converts an array of three [`Button`]s into a [`MsgItem`] by wrapping
+    /// them in a [`Row`].
     fn from(value: [Button; 3]) -> Self {
         Self::Row(Row::from(value))
     }
 }
 
 impl From<[Button; 4]> for MsgItem {
-    /// Converts an array of four [`Button`]s into a [`MsgItem`].
+    /// Converts an array of four [`Button`]s into a [`MsgItem`] by wrapping
+    /// them in a [`Row`].
     fn from(value: [Button; 4]) -> Self {
         Self::Row(Row::from(value))
     }
 }
 
 impl From<[Button; 5]> for MsgItem {
-    /// Converts an array of five [`Button`]s into a [`MsgItem`].
+    /// Converts an array of five [`Button`]s into a [`MsgItem`] by wrapping
+    /// them in a [`Row`].
     fn from(value: [Button; 5]) -> Self {
         Self::Row(Row::from(value))
     }
@@ -310,25 +321,30 @@ impl From<Text> for MsgItem {
 }
 
 impl From<String> for MsgItem {
-    /// Converts a [`String`] into a [`MsgItem`].
+    /// Converts a [`String`] into a [`MsgItem`] by wrapping it in a [`Text`].
     ///
-    /// This conversion wraps the string in a [`Text`], as a message cannot hold
-    /// a string directly.
+    /// # Panics
+    ///
+    /// This function will panic if the string is not between 1 and 4000
+    /// characters long.
     fn from(value: String) -> Self {
         Self::Text(value.into())
     }
 }
 
 impl From<&str> for MsgItem {
-    /// Converts a `&str` into a [`MsgItem`].
+    /// Converts a `&str` into a [`MsgItem`] by wrapping it in a [`Text`].
     ///
-    /// This conversion wraps the string in a [`Text`], as a message cannot hold
-    /// a string directly.
+    /// # Panics
+    ///
+    /// This function will panic if the string is not between 1 and 4000
+    /// characters long.
     fn from(value: &str) -> Self {
         Self::Text(value.into())
     }
 }
 
+#[doc(hidden)]
 impl From<MsgItem> for tw::Component {
     fn from(value: MsgItem) -> Self {
         match value {

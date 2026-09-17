@@ -1,3 +1,10 @@
+//! Contains action types, which carry what a user did and let the bot respond.
+//!
+//! Nebula calls Discord's
+//! [interactions](https://docs.discord.com/developers/interactions/overview)
+//! *actions*. Only actions performed in guilds are supported for now
+//! ([#1](https://github.com/jackhexed/nebula/issues/1)).
+
 use std::sync::Arc;
 
 use crate::{
@@ -12,7 +19,7 @@ use crate::{
 
 mod slash;
 
-pub use slash::SlashCtx;
+pub use slash::{SlashArg, SlashCtx};
 
 mod tw {
     pub use twilight_model::application::interaction::Interaction;
@@ -20,16 +27,21 @@ mod tw {
     pub use twilight_model::application::interaction::InteractionType;
 }
 
-/// An action that a user has performed, such as a slash command.
+/// An action a user performed, such as running a slash command.
 ///
-/// This is a wrapper around the underlying action context, which contains
-/// information about the action.
+/// Each variant holds the context for its kind of action, and every context
+/// derefs to [`ActionCtx`] for the information all actions share.
+///
+/// [Discord docs](https://docs.discord.com/developers/interactions/receiving-and-responding#interaction-object-interaction-structure)
 pub enum Action {
+    /// A slash command was run.
     Slash(SlashCtx),
 }
 
-/// A context for actions, providing access to shared state and cache, along
-/// with storing and parsing common action information.
+/// The information every action shares.
+///
+/// This is never received on its own. Each [`Action`] variant's context, such
+/// as [`SlashCtx`], derefs to it.
 pub struct ActionCtx {
     shared: Arc<Shared>,
     cache: Arc<Cache>,
@@ -43,37 +55,40 @@ pub struct ActionCtx {
 }
 
 impl ActionCtx {
-    /// Returns a reference to the shared state.
+    /// Returns the shared state.
     pub(crate) fn shared(&self) -> &Arc<Shared> {
         &self.shared
     }
 
-    /// Returns a reference to the cache.
+    /// Returns the action's cache.
     pub(crate) fn cache(&self) -> &Arc<Cache> {
         &self.cache
     }
 
-    /// Returns a reference to the response sink.
+    /// Returns the action's response sink.
     pub(crate) fn sink(&self) -> &ResponseSink {
         &self.sink
     }
 
-    /// Returns the snowflake of the action.
+    /// Returns the action's snowflake.
     pub fn action_id(&self) -> Snowflake<ActionMarker> {
         self.action_id
     }
 
-    /// Returns the token of the action.
+    /// Returns the action's token.
+    ///
+    /// The token is used to respond to the action, and is valid for 15
+    /// minutes.
     pub fn action_token(&self) -> &str {
         &self.action_token
     }
 
-    /// Returns a reference to the guild that the action was performed in.
+    /// Returns the guild the action was performed in.
     pub fn guild(&self) -> &Guild {
         &self.guild
     }
 
-    /// Returns a reference to the user that performed the action.
+    /// Returns the user who performed the action.
     pub fn user(&self) -> &User {
         &self.user
     }
@@ -83,7 +98,12 @@ impl ActionCtx {
         ModelCtx::new(Arc::clone(&self.shared), Arc::clone(&self.cache))
     }
 
-    /// Parses an action from a twilight interaction.
+    /// Parses a Twilight interaction into an action.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the interaction was not performed in a
+    /// guild, or is not an application command.
     pub(crate) fn parse(
         shared: Arc<Shared>,
         sink: ResponseSink,

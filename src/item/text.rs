@@ -85,6 +85,7 @@ impl From<&str> for Text {
     }
 }
 
+#[doc(hidden)]
 impl From<Text> for tw::TextDisplay {
     fn from(value: Text) -> Self {
         Self {

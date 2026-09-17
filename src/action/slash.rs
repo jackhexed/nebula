@@ -12,7 +12,7 @@ mod tw {
     pub use twilight_model::application::interaction::application_command::CommandOptionValue;
 }
 
-/// The context for a slash command action.
+/// The context for a [`Slash`](crate::slash::Slash) command that was run.
 pub struct SlashCtx {
     action_ctx: ActionCtx,
 
@@ -29,22 +29,25 @@ impl Deref for SlashCtx {
 }
 
 impl SlashCtx {
-    /// Returns the path of the slash command, which is a space-separated string
-    /// of the command name and any subcommand names.
+    /// Returns the command's path: its name followed by any subcommand group
+    /// and subcommand names, separated by spaces, such as `"config set"`.
     pub fn path(&self) -> &str {
         &self.path
     }
 
-    /// Returns a reference to the arguments the slash command was invoked with.
+    /// Returns the arguments the command was run with, keyed by parameter
+    /// name.
     ///
-    /// The keys are the argument names, and the values are the argument values.
+    /// Optional parameters the user left out have no entry. Most handlers use
+    /// [`required`](Self::required) and [`optional`](Self::optional) instead.
     pub fn args(&self) -> &HashMap<Box<str>, SlashArg> {
         &self.args
     }
 
-    /// Returns the value of an optional argument.
+    /// Returns the value of an optional argument, or `None` if the user left it
+    /// out.
     ///
-    /// If the argument is not present, returns `None`.
+    /// See [`SlashArg`] for the types `T` may be.
     ///
     /// # Panics
     ///
@@ -58,6 +61,8 @@ impl SlashCtx {
     }
 
     /// Returns the value of a required argument.
+    ///
+    /// See [`SlashArg`] for the types `T` may be.
     ///
     /// # Panics
     ///
@@ -112,14 +117,35 @@ impl SlashCtx {
     }
 }
 
-/// Represents a slash command argument.
+/// The value of a slash command argument.
+///
+/// This is rarely matched on directly. [`SlashCtx::required`] and
+/// [`SlashCtx::optional`] convert an argument into any of the types below, and
+/// panic if the argument is a different variant:
+///
+/// * [`Boolean`](Self::Boolean): `bool`
+/// * [`Integer`](Self::Integer): `i64`
+/// * [`Number`](Self::Number): `f64`
+/// * [`Text`](Self::Text): `&str`, [`String`], `Box<str>`
+/// * [`User`](Self::User): [`User`], `&User`, `Snowflake<UserMarker>`
+/// * [`Role`](Self::Role): [`Role`], `&Role`, `Snowflake<RoleMarker>`
 pub enum SlashArg {
+    /// The value of a [boolean parameter](crate::slash::SlashParamBoolean).
     Boolean(bool),
-    Integer(i64),
-    Number(f64),
-    String(Box<str>),
 
+    /// The value of an [integer parameter](crate::slash::SlashParamInteger).
+    Integer(i64),
+
+    /// The value of a [number parameter](crate::slash::SlashParamNumber).
+    Number(f64),
+
+    /// The value of a [text parameter](crate::slash::SlashParamText).
+    Text(Box<str>),
+
+    /// The value of a [user parameter](crate::slash::SlashParamUser).
     User(User),
+
+    /// The value of a [role parameter](crate::slash::SlashParamRole).
     Role(Role),
 }
 
@@ -131,7 +157,7 @@ impl SlashArg {
             tw::CommandOptionValue::Boolean(bool) => Self::Boolean(bool),
             tw::CommandOptionValue::Integer(int) => Self::Integer(int),
             tw::CommandOptionValue::Number(num) => Self::Number(num),
-            tw::CommandOptionValue::String(str) => Self::String(str.into_boxed_str()),
+            tw::CommandOptionValue::String(text) => Self::Text(text.into_boxed_str()),
 
             tw::CommandOptionValue::User(user_id) => {
                 let user_id = Snowflake::from(user_id);
@@ -153,6 +179,12 @@ impl SlashArg {
 }
 
 impl From<&SlashArg> for bool {
+    /// Converts a [`SlashArg::Boolean`] into a `bool`.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the argument is not a
+    /// [`SlashArg::Boolean`].
     fn from(value: &SlashArg) -> Self {
         match value {
             SlashArg::Boolean(b) => *b,
@@ -162,6 +194,12 @@ impl From<&SlashArg> for bool {
 }
 
 impl From<&SlashArg> for i64 {
+    /// Converts a [`SlashArg::Integer`] into an `i64`.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the argument is not a
+    /// [`SlashArg::Integer`].
     fn from(value: &SlashArg) -> Self {
         match value {
             SlashArg::Integer(i) => *i,
@@ -171,6 +209,11 @@ impl From<&SlashArg> for i64 {
 }
 
 impl From<&SlashArg> for f64 {
+    /// Converts a [`SlashArg::Number`] into an `f64`.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the argument is not a [`SlashArg::Number`].
     fn from(value: &SlashArg) -> Self {
         match value {
             SlashArg::Number(n) => *n,
@@ -180,27 +223,47 @@ impl From<&SlashArg> for f64 {
 }
 
 impl<'a> From<&'a SlashArg> for &'a str {
+    /// Converts a [`SlashArg::Text`] into a `&str`.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the argument is not a [`SlashArg::Text`].
     fn from(value: &'a SlashArg) -> Self {
         match value {
-            SlashArg::String(s) => s,
-            _ => unreachable!("type mismatch: expected string"),
+            SlashArg::Text(text) => text,
+            _ => unreachable!("type mismatch: expected text"),
         }
     }
 }
 
 impl From<&SlashArg> for Box<str> {
+    /// Converts a [`SlashArg::Text`] into a `Box<str>`.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the argument is not a [`SlashArg::Text`].
     fn from(value: &SlashArg) -> Self {
         <&str>::from(value).into()
     }
 }
 
 impl From<&SlashArg> for String {
+    /// Converts a [`SlashArg::Text`] into a [`String`].
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the argument is not a [`SlashArg::Text`].
     fn from(value: &SlashArg) -> Self {
         <&str>::from(value).into()
     }
 }
 
 impl<'a> From<&'a SlashArg> for &'a User {
+    /// Converts a [`SlashArg::User`] into a `&User`.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the argument is not a [`SlashArg::User`].
     fn from(value: &'a SlashArg) -> Self {
         match value {
             SlashArg::User(user) => user,
@@ -210,18 +273,33 @@ impl<'a> From<&'a SlashArg> for &'a User {
 }
 
 impl From<&SlashArg> for User {
+    /// Converts a [`SlashArg::User`] into a [`User`].
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the argument is not a [`SlashArg::User`].
     fn from(value: &SlashArg) -> Self {
         <&User>::from(value).clone()
     }
 }
 
 impl From<&SlashArg> for Snowflake<UserMarker> {
+    /// Converts a [`SlashArg::User`] into the user's snowflake.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the argument is not a [`SlashArg::User`].
     fn from(value: &SlashArg) -> Self {
         <&User>::from(value).id()
     }
 }
 
 impl<'a> From<&'a SlashArg> for &'a Role {
+    /// Converts a [`SlashArg::Role`] into a `&Role`.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the argument is not a [`SlashArg::Role`].
     fn from(value: &'a SlashArg) -> Self {
         match value {
             SlashArg::Role(role) => role,
@@ -231,12 +309,22 @@ impl<'a> From<&'a SlashArg> for &'a Role {
 }
 
 impl From<&SlashArg> for Role {
+    /// Converts a [`SlashArg::Role`] into a [`Role`].
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the argument is not a [`SlashArg::Role`].
     fn from(value: &SlashArg) -> Self {
         <&Role>::from(value).clone()
     }
 }
 
 impl From<&SlashArg> for Snowflake<RoleMarker> {
+    /// Converts a [`SlashArg::Role`] into the role's snowflake.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the argument is not a [`SlashArg::Role`].
     fn from(value: &SlashArg) -> Self {
         <&Role>::from(value).id()
     }

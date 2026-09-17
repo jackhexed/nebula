@@ -1,6 +1,10 @@
 use crate::{Snowflake, model::ModelCtx, snowflake::GuildMarker};
 
-/// Represents a Discord guild (server).
+/// A Discord guild, also called a server.
+///
+/// See the [module docs](crate::model) for how models work.
+///
+/// [Discord docs](https://docs.discord.com/developers/resources/guild#guild-object-guild-structure)
 #[derive(Clone)]
 pub struct Guild {
     model_ctx: ModelCtx,
@@ -20,7 +24,7 @@ impl From<&Guild> for Snowflake<GuildMarker> {
 }
 
 impl Guild {
-    /// Creates a new guild model type.
+    /// Creates a guild model from its snowflake.
     pub(crate) fn new(model_ctx: ModelCtx, guild_id: Snowflake<GuildMarker>) -> Self {
         Self {
             model_ctx,

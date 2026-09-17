@@ -45,8 +45,8 @@ pub struct Row {
 impl Row {
     /// Creates an empty row.
     ///
-    /// A row with no buttons will error when sent, so at least one button must
-    /// be added with [`Row::button`].
+    /// Discord rejects a row with no buttons, so at least one button must be
+    /// added with [`Row::button`].
     pub fn new() -> Self {
         Self::default()
     }
@@ -77,7 +77,7 @@ impl From<Button> for Row {
 }
 
 impl From<[Button; 1]> for Row {
-    /// Converts an array of one [`Button`] into a [`Row`].
+    /// Converts an array of one [`Button`] into a [`Row`] holding it.
     fn from(value: [Button; 1]) -> Self {
         Self {
             buttons: Vec::from(value),
@@ -86,7 +86,7 @@ impl From<[Button; 1]> for Row {
 }
 
 impl From<[Button; 2]> for Row {
-    /// Converts an array of two [`Button`]s into a [`Row`].
+    /// Converts an array of two [`Button`]s into a [`Row`] holding them.
     fn from(value: [Button; 2]) -> Self {
         Self {
             buttons: Vec::from(value),
@@ -95,7 +95,7 @@ impl From<[Button; 2]> for Row {
 }
 
 impl From<[Button; 3]> for Row {
-    /// Converts an array of three [`Button`]s into a [`Row`].
+    /// Converts an array of three [`Button`]s into a [`Row`] holding them.
     fn from(value: [Button; 3]) -> Self {
         Self {
             buttons: Vec::from(value),
@@ -104,7 +104,7 @@ impl From<[Button; 3]> for Row {
 }
 
 impl From<[Button; 4]> for Row {
-    /// Converts an array of four [`Button`]s into a [`Row`].
+    /// Converts an array of four [`Button`]s into a [`Row`] holding them.
     fn from(value: [Button; 4]) -> Self {
         Self {
             buttons: Vec::from(value),
@@ -113,7 +113,7 @@ impl From<[Button; 4]> for Row {
 }
 
 impl From<[Button; 5]> for Row {
-    /// Converts an array of five [`Button`]s into a [`Row`].
+    /// Converts an array of five [`Button`]s into a [`Row`] holding them.
     fn from(value: [Button; 5]) -> Self {
         Self {
             buttons: Vec::from(value),
@@ -121,6 +121,7 @@ impl From<[Button; 5]> for Row {
     }
 }
 
+#[doc(hidden)]
 impl From<Row> for tw::ActionRow {
     fn from(value: Row) -> Self {
         Self {

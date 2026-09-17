@@ -5,16 +5,16 @@ mod tw {
 
 /// Nebula's error type.
 ///
-/// Nebula's errors are not errors that should be matched on, and should instead
-/// be logged and reported. Thus, nebula's error type is a simple wrapper around
-/// a string message, and implements the [`std::error::Error`] trait.
+/// Errors are meant to be logged or reported, not matched on, so this is a
+/// plain message implementing [`std::error::Error`]. It is returned only for
+/// I/O and Discord API failures; misusing Nebula's API panics instead.
 #[derive(Debug)]
 pub struct Error {
     msg: String,
 }
 
 impl Error {
-    /// Creates a new error with the given message.
+    /// Creates an error with the given message.
     pub fn new(msg: impl Into<String>) -> Self {
         Self { msg: msg.into() }
     }
@@ -28,6 +28,7 @@ impl std::fmt::Display for Error {
 
 impl std::error::Error for Error {}
 
+#[doc(hidden)]
 impl From<tw::Error> for Error {
     fn from(value: tw::Error) -> Self {
         Self {
@@ -36,6 +37,7 @@ impl From<tw::Error> for Error {
     }
 }
 
+#[doc(hidden)]
 impl From<tw::DeserializeBodyError> for Error {
     fn from(value: tw::DeserializeBodyError) -> Self {
         Self {

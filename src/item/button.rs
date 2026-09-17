@@ -5,8 +5,8 @@ mod tw {
 
 /// Creates a [`Button`].
 ///
-/// The first argument names the style and gives the button's custom id, or for
-/// `link:` its url. `disabled: <bool>` may follow, and a trailing [`format!`]
+/// The first argument names the style and gives the button's custom ID, or for
+/// `link:` its URL. `disabled: <bool>` may follow, and a trailing [`format!`]
 /// argument list becomes the label.
 ///
 /// ```
@@ -14,13 +14,13 @@ mod tw {
 ///
 /// let count = 3;
 ///
-/// // a primary button with the custom id "submit" and the label "Submit 3 answers"
+/// // a primary button with the custom ID "submit" and the label "Submit 3 answers"
 /// let submit = button!(primary: "submit", "Submit {count} answers");
 ///
-/// // a disabled danger button with the custom id "reset" and the label "Reset"
+/// // a disabled danger button with the custom ID "reset" and the label "Reset"
 /// let locked = button!(danger: "reset", disabled: true, "Reset");
 ///
-/// // a link button with the url "https://discord.com" and the label "Open Discord"
+/// // a link button with the URL "https://discord.com" and the label "Open Discord"
 /// let docs = button!(link: "https://discord.com", "Open Discord");
 /// ```
 ///
@@ -91,8 +91,8 @@ macro_rules! button_go {
 /// may be passed anywhere a row is accepted.
 ///
 /// A button either dispatches an action or opens a link. The `primary`,
-/// `secondary`, `success`, and `danger` styles take a custom id, which is sent
-/// back to the bot when the button is clicked; `link` takes a url instead and
+/// `secondary`, `success`, and `danger` styles take a custom ID, which is sent
+/// back to the bot when the button is clicked; `link` takes a URL instead and
 /// is never dispatched.
 ///
 /// [Discord docs](https://docs.discord.com/developers/components/reference#button)
@@ -106,11 +106,11 @@ pub struct Button {
 }
 
 impl Button {
-    /// Creates a button of the given style dispatching the given custom id.
+    /// Creates a button of the given style dispatching the given custom ID.
     ///
     /// # Panics
     ///
-    /// This function will panic if the custom id is not between 1 and 100
+    /// This function will panic if the custom ID is not between 1 and 100
     /// characters long.
     fn build(style: tw::ButtonStyle, custom_id: impl Into<String>) -> Self {
         let custom_id = custom_id.into();
@@ -129,54 +129,54 @@ impl Button {
         }
     }
 
-    /// Creates a blurple button dispatching the given custom id.
+    /// Creates a blurple button dispatching the given custom ID.
     ///
     /// # Panics
     ///
-    /// This function will panic if the custom id is not between 1 and 100
+    /// This function will panic if the custom ID is not between 1 and 100
     /// characters long.
     pub fn primary(custom_id: impl Into<String>) -> Self {
         Self::build(tw::ButtonStyle::Primary, custom_id)
     }
 
-    /// Creates a grey button dispatching the given custom id.
+    /// Creates a grey button dispatching the given custom ID.
     ///
     /// # Panics
     ///
-    /// This function will panic if the custom id is not between 1 and 100
+    /// This function will panic if the custom ID is not between 1 and 100
     /// characters long.
     pub fn secondary(custom_id: impl Into<String>) -> Self {
         Self::build(tw::ButtonStyle::Secondary, custom_id)
     }
 
-    /// Creates a green button dispatching the given custom id.
+    /// Creates a green button dispatching the given custom ID.
     ///
     /// # Panics
     ///
-    /// This function will panic if the custom id is not between 1 and 100
+    /// This function will panic if the custom ID is not between 1 and 100
     /// characters long.
     pub fn success(custom_id: impl Into<String>) -> Self {
         Self::build(tw::ButtonStyle::Success, custom_id)
     }
 
-    /// Creates a red button dispatching the given custom id.
+    /// Creates a red button dispatching the given custom ID.
     ///
     /// # Panics
     ///
-    /// This function will panic if the custom id is not between 1 and 100
+    /// This function will panic if the custom ID is not between 1 and 100
     /// characters long.
     pub fn danger(custom_id: impl Into<String>) -> Self {
         Self::build(tw::ButtonStyle::Danger, custom_id)
     }
 
-    /// Creates a grey button opening the given url.
+    /// Creates a grey button opening the given URL.
     ///
-    /// Link buttons have no custom id and never dispatch an action, so the bot
+    /// Link buttons have no custom ID and never dispatch an action, so the bot
     /// is not notified when one is clicked.
     ///
     /// # Panics
     ///
-    /// This function will panic if the url is not between 1 and 512 characters
+    /// This function will panic if the URL is not between 1 and 512 characters
     /// long.
     pub fn link(url: impl Into<String>) -> Self {
         let url = url.into();
@@ -225,8 +225,9 @@ impl Button {
     }
 }
 
+#[doc(hidden)]
 impl From<Button> for tw::Button {
-    /// Converts a [`Button`] into a [`twilight_model::channel::message::component::Button`].
+    /// Converts a [`Button`] into a Twilight button.
     ///
     /// # Panics
     ///

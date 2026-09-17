@@ -4,7 +4,11 @@ use crate::{
     snowflake::{GuildMarker, RoleMarker},
 };
 
-/// Represents a Discord role.
+/// A role in a Discord guild.
+///
+/// See the [module docs](crate::model) for how models work.
+///
+/// [Discord docs](https://docs.discord.com/developers/topics/permissions#role-object-role-structure)
 #[derive(Clone)]
 pub struct Role {
     model_ctx: ModelCtx,
@@ -25,7 +29,7 @@ impl From<&Role> for Snowflake<RoleMarker> {
 }
 
 impl Role {
-    /// Creates a new role model type.
+    /// Creates a role model from its guild's snowflake and its own.
     pub(crate) fn new(
         model_ctx: ModelCtx,
         guild_id: Snowflake<GuildMarker>,

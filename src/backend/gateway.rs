@@ -12,6 +12,14 @@ mod tw {
     pub use twilight_gateway::{CloseFrame, Event, EventTypeFlags, Intents, Shard, ShardId};
 }
 
+/// A backend that receives actions over the gateway.
+///
+/// This backend is for local testing, as it needs no public HTTP endpoint. It
+/// opens a single shard with no intents and ignores every event except
+/// interactions.
+///
+/// Clones are handles to the same gateway, so a clone can
+/// [`stop`](Self::stop) a gateway that another clone started.
 #[derive(Clone)]
 pub struct Gateway<T>
 where
@@ -24,21 +32,41 @@ impl<T> Gateway<T>
 where
     T: Future<Output = ()> + Send + 'static,
 {
+    /// Creates a gateway for the given bot.
+    ///
+    /// The gateway does not connect until [`start`](Self::start) is called.
     pub fn new(bot: Bot<T>) -> Self {
         let inner = Arc::new(Inner::new(bot));
 
         Self { inner }
     }
 
+    /// Connects to the gateway and handles actions until the gateway is
+    /// stopped.
+    ///
+    /// Each action is handled on its own task. After [`stop`](Self::stop) is
+    /// called, this function closes the connection and waits for running
+    /// handlers to finish before returning.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if the gateway has already been
+    /// started, even if it has since stopped, or if the connection closes
+    /// unexpectedly.
     pub async fn start(&self) -> Result<(), Error> {
         self.inner.start().await
     }
 
+    /// Tells the gateway to stop.
+    ///
+    /// This function returns immediately. [`start`](Self::start) returns once
+    /// shutdown completes.
     pub fn stop(&self) {
         self.inner.stop();
     }
 }
 
+/// The state shared by every clone of a [`Gateway`].
 struct Inner<T>
 where
     T: Future<Output = ()> + Send + 'static,

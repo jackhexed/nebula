@@ -1,3 +1,5 @@
+//! Contains the [`Snowflake`] ID type and its markers.
+
 use std::{fmt::Display, num::NonZeroU64};
 
 mod tw {
@@ -6,17 +8,17 @@ mod tw {
 }
 
 /// A marker trait for the type parameter of [`Snowflake`].
+///
+/// This trait is private, so downstream crates cannot add their own markers.
 trait Marker {}
 
-/// A type-safe representation of [discord's snowflakes](https://discord.com/developers/docs/reference#snowflakes).
+/// A Discord ID, typed by what it identifies.
 ///
-/// Snowflakes are unique identifiers used by discord to identify various
-/// entities, such as users, guilds, channels, and messages. They are 64-bit
-/// unsigned integers that encode the timestamp of their creation, as well as
-/// other information such as the worker ID and process ID that generated them.
-///
-/// The type parameter `T` is a marker type that indicates what kind of entity
-/// the snowflake represents, such as a user, guild, or channel.
+/// Discord identifies users, guilds, roles, and most other entities with
+/// [snowflakes](https://docs.discord.com/developers/reference#snowflakes).
+/// The marker type `T`, such as [`UserMarker`], records which kind of entity a
+/// snowflake identifies, so a user ID cannot be passed where a guild ID is
+/// expected.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
 #[allow(private_bounds)]
@@ -72,6 +74,7 @@ where
     }
 }
 
+#[doc(hidden)]
 impl<T, U> From<tw::Id<T>> for Snowflake<U>
 where
     T: Into<U>,
@@ -82,6 +85,7 @@ where
     }
 }
 
+#[doc(hidden)]
 impl<T, U> From<&tw::Id<T>> for Snowflake<U>
 where
     T: Into<U>,
@@ -92,6 +96,7 @@ where
     }
 }
 
+#[doc(hidden)]
 impl<T, U> From<Snowflake<U>> for tw::Id<T>
 where
     T: Into<U>,
@@ -102,6 +107,7 @@ where
     }
 }
 
+#[doc(hidden)]
 impl<T, U> From<&Snowflake<U>> for tw::Id<T>
 where
     T: Into<U>,
@@ -117,12 +123,11 @@ impl<T> Snowflake<T>
 where
     T: Marker,
 {
-    /// Creates a new [`Snowflake`] from a `u64` value.
+    /// Creates a snowflake from a `u64`.
     ///
     /// # Panics
     ///
-    /// Snowflakes use a [`NonZeroU64`] internally, so this function will panic if
-    /// the provided value is zero.
+    /// This function will panic if the value is zero.
     pub const fn new(data: u64) -> Self {
         Self {
             data: NonZeroU64::new(data).expect("Snowflake data must be non-zero"),
@@ -130,12 +135,12 @@ where
         }
     }
 
-    /// Returns the underlying [`NonZeroU64`] value of the snowflake.
+    /// Returns the snowflake as a [`NonZeroU64`].
     pub fn data(&self) -> NonZeroU64 {
         self.data
     }
 
-    /// Returns the underlying `u64` value of the snowflake.
+    /// Returns the snowflake as a `u64`.
     pub fn get(&self) -> u64 {
         self.data.get()
     }
@@ -151,16 +156,18 @@ where
 }
 
 macro_rules! marker {
-    ($name:ident) => {
-        marker!($name, $name);
+    ($(#[$meta:meta])* $name:ident) => {
+        marker!($(#[$meta])* $name, $name);
     };
 
-    ($name:ident, $tw:ident) => {
+    ($(#[$meta:meta])* $name:ident, $tw:ident) => {
+        $(#[$meta])*
         #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
         pub struct $name;
 
         impl Marker for $name {}
 
+        #[doc(hidden)]
         impl From<tw::$tw> for $name {
             fn from(_: tw::$tw) -> Self {
                 Self
@@ -169,10 +176,39 @@ macro_rules! marker {
     };
 }
 
-marker!(AppMarker, ApplicationMarker);
-marker!(ChannelMarker);
-marker!(GuildMarker);
-marker!(ActionMarker, InteractionMarker);
-marker!(MessageMarker);
-marker!(RoleMarker);
-marker!(UserMarker);
+marker!(
+    /// Marks a [`Snowflake`] as identifying an application.
+    AppMarker,
+    ApplicationMarker
+);
+
+marker!(
+    /// Marks a [`Snowflake`] as identifying a channel.
+    ChannelMarker
+);
+
+marker!(
+    /// Marks a [`Snowflake`] as identifying a guild.
+    GuildMarker
+);
+
+marker!(
+    /// Marks a [`Snowflake`] as identifying an [action](crate::action).
+    ActionMarker,
+    InteractionMarker
+);
+
+marker!(
+    /// Marks a [`Snowflake`] as identifying a message.
+    MessageMarker
+);
+
+marker!(
+    /// Marks a [`Snowflake`] as identifying a role.
+    RoleMarker
+);
+
+marker!(
+    /// Marks a [`Snowflake`] as identifying a user.
+    UserMarker
+);

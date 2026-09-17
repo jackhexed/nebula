@@ -1,4 +1,4 @@
-//! Contains model types to represent discord entities.
+//! Contains model types representing Discord entities.
 //!
 //! Model types represent entities like guilds, users, and roles. They are used
 //! both to fetch data about these entities (like username or avatar), and to
@@ -12,10 +12,15 @@
 //! name, avatar, or other data.
 //!
 //! To make this pattern efficient, model types store only their snowflake and
-//! a [`ModelCtx`]. Data is instead stored in the cache.
+//! a handle to the HTTP client and the action's cache. Data is fetched when
+//! first needed and stored in that cache, which is dropped when the action
+//! ends.
 //!
 //! This results in slower data access, but fewer web requests and less memory
 //! usage, as well as allowing for a more flexible API.
+//!
+//! Because a model is only a snowflake and a handle, models are cheap to clone
+//! and compare equal when their snowflakes are equal.
 
 use std::sync::Arc;
 
@@ -45,12 +50,12 @@ impl ModelCtx {
         Self { shared, cache }
     }
 
-    /// Returns a reference to the shared state.
+    /// Returns the shared state.
     pub(crate) fn shared(&self) -> &Arc<Shared> {
         &self.shared
     }
 
-    /// Returns a reference to the cache.
+    /// Returns the cache.
     pub(crate) fn cache(&self) -> &Arc<Cache> {
         &self.cache
     }

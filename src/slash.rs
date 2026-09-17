@@ -1,3 +1,10 @@
+//! Contains types for declaring slash commands.
+//!
+//! A [`Slash`] declares a command's name, description, and parameters or
+//! subcommands. When a user runs the command, the bot receives an
+//! [`Action::Slash`](crate::action::Action::Slash) holding the arguments for
+//! those parameters.
+
 mod tw {
     pub use twilight_model::application::command::Command;
     pub use twilight_model::application::command::CommandOption;
@@ -10,9 +17,14 @@ mod tw {
 
 /// A slash command.
 ///
-/// A command can only have parameters or subcommands. Subcommands may be nested
-/// only two levels deep (command -> group -> subcommand); a subcommand at the
-/// deepest level may only have parameters.
+/// A command has either parameters or subcommands, never both. Subcommands may
+/// be nested only two levels deep (command -> group -> subcommand), so a
+/// subcommand at the deepest level may only have parameters.
+///
+/// Commands are only available in guilds for now
+/// ([#1](https://github.com/jackhexed/nebula/issues/1)).
+///
+/// [Discord docs](https://docs.discord.com/developers/interactions/application-commands#slash-commands)
 pub struct Slash {
     name: String,
     description: String,
@@ -22,18 +34,17 @@ pub struct Slash {
 }
 
 impl Slash {
-    /// Creates a new slash command.
+    /// Creates a slash command, or a subcommand when passed to
+    /// [`Slash::subcommand`].
     ///
-    /// Slash command names must be between 1 and 32 characters long, and has
-    /// [character restrictions](https://docs.discord.com/developers/interactions/application-commands#application-command-object-application-command-naming).
-    ///
-    /// The description must be between 1 and 100 characters long, but has no
-    /// restrictions on the characters it may contain.
+    /// Besides the length limits below, the name must follow Discord's
+    /// [naming rules](https://docs.discord.com/developers/interactions/application-commands#application-command-object-application-command-naming).
+    /// The description may contain any characters.
     ///
     /// # Panics
     ///
-    /// This function will panic if the name or description do not meet the
-    /// above length requirements.
+    /// This function will panic if the name is not between 1 and 32 characters
+    /// long, or if the description is not between 1 and 100 characters long.
     pub fn new(name: impl Into<String>, description: impl Into<String>) -> Self {
         let name = name.into();
         let description = description.into();
@@ -56,12 +67,14 @@ impl Slash {
         }
     }
 
-    /// Adds a parameter to the slash command.
+    /// Adds a parameter to the command.
+    ///
+    /// See [`SlashParam`] for the kinds of parameter. Discord requires every
+    /// required parameter to come before every optional one.
     ///
     /// # Panics
     ///
-    /// This function will panic if the command has subcommands, as a command
-    /// cannot have both parameters and subcommands.
+    /// This function will panic if the command has subcommands.
     pub fn param(mut self, param: impl Into<SlashParam>) -> Self {
         assert!(
             self.subcommands.is_empty(),
@@ -72,15 +85,15 @@ impl Slash {
         self
     }
 
-    /// Adds a subcommand to the slash command.
+    /// Adds a subcommand to the command.
+    ///
+    /// A subcommand that has subcommands of its own is a
+    /// [subcommand group](https://docs.discord.com/developers/interactions/application-commands#subcommands-and-subcommand-groups).
     ///
     /// # Panics
     ///
-    /// This function will panic if the command has parameters, as a command
-    /// cannot have both parameters and subcommands. It will also panic if the
-    /// subcommand being added has two or more levels of subcommands, as
-    /// subcommand nesting may only be two levels deep (command -> group ->
-    /// subcommand).
+    /// This function will panic if the command has parameters, or if
+    /// `subcommand` would nest subcommands more than two levels deep.
     pub fn subcommand(mut self, subcommand: Slash) -> Self {
         assert!(
             self.params.is_empty(),
@@ -100,6 +113,7 @@ impl Slash {
     }
 }
 
+#[doc(hidden)]
 impl From<Slash> for tw::Command {
     // TODO: allow non-guild commands (https://github.com/jackhexed/nebula/issues/1)
     fn from(value: Slash) -> Self {
@@ -134,6 +148,7 @@ impl From<Slash> for tw::Command {
     }
 }
 
+#[doc(hidden)]
 impl From<Slash> for tw::CommandOption {
     fn from(value: Slash) -> Self {
         let name = value.name;
@@ -170,13 +185,33 @@ impl From<Slash> for tw::CommandOption {
     }
 }
 
-/// A parameter for a slash command.
+/// A slash command parameter.
+///
+/// This is rarely named directly. Parameters are usually created with the
+/// shorthand constructors on this type, such as [`SlashParam::text`], and
+/// passed to [`Slash::param`].
+///
+/// Parameter names and descriptions have the same limits as [`Slash::new`],
+/// but are not yet checked.
+///
+/// [Discord docs](https://docs.discord.com/developers/interactions/application-commands#application-command-object-application-command-option-type)
 pub enum SlashParam {
+    /// A [`SlashParamText`].
     Text(SlashParamText),
+
+    /// A [`SlashParamInteger`].
     Integer(SlashParamInteger),
+
+    /// A [`SlashParamNumber`].
     Number(SlashParamNumber),
+
+    /// A [`SlashParamBoolean`].
     Boolean(SlashParamBoolean),
+
+    /// A [`SlashParamUser`].
     User(SlashParamUser),
+
+    /// A [`SlashParamRole`].
     Role(SlashParamRole),
 }
 
@@ -212,6 +247,7 @@ impl SlashParam {
     }
 }
 
+#[doc(hidden)]
 impl From<SlashParam> for tw::CommandOption {
     fn from(value: SlashParam) -> Self {
         match value {
@@ -236,7 +272,7 @@ pub struct SlashParamText {
 }
 
 impl SlashParamText {
-    /// Creates a new text parameter.
+    /// Creates a text parameter.
     pub fn new(name: impl Into<String>, description: impl Into<String>) -> Self {
         let name = name.into();
         let description = description.into();
@@ -250,18 +286,20 @@ impl SlashParamText {
         }
     }
 
-    /// Sets the parameter as required.
+    /// Makes the parameter required.
+    ///
+    /// Parameters are optional by default.
     pub fn required(mut self) -> Self {
         self.required = true;
         self
     }
 
-    /// Sets the minimum length of the text input.
+    /// Sets the minimum length of the text.
     ///
     /// # Panics
     ///
-    /// This function will panic if the minimum length is greater than the
-    /// maximum length, or if the minimum length is greater than 6000.
+    /// This function will panic if the minimum length is greater than 6000, or
+    /// if it is greater than the maximum length.
     pub fn min_length(mut self, min_length: u16) -> Self {
         assert!(
             min_length <= 6000,
@@ -277,13 +315,12 @@ impl SlashParamText {
         self
     }
 
-    /// Sets the maximum length of the text input.
+    /// Sets the maximum length of the text.
     ///
     /// # Panics
     ///
-    /// This function will panic if the maximum length is less than the minimum
-    /// length, or if the maximum length is greater than 6000, or if the maximum
-    /// length is 0.
+    /// This function will panic if the maximum length is not between 1 and
+    /// 6000, or if it is less than the minimum length.
     pub fn max_length(mut self, max_length: u16) -> Self {
         assert!(max_length != 0, "maximum length cannot be 0");
 
@@ -308,6 +345,7 @@ impl From<SlashParamText> for SlashParam {
     }
 }
 
+#[doc(hidden)]
 impl From<SlashParamText> for tw::CommandOption {
     fn from(value: SlashParamText) -> Self {
         tw::CommandOption {
@@ -340,7 +378,7 @@ pub struct SlashParamInteger {
 }
 
 impl SlashParamInteger {
-    /// Creates a new integer parameter.
+    /// Creates an integer parameter.
     pub fn new(name: impl Into<String>, description: impl Into<String>) -> Self {
         let name = name.into();
         let description = description.into();
@@ -354,19 +392,21 @@ impl SlashParamInteger {
         }
     }
 
-    /// Sets the parameter as required.
+    /// Makes the parameter required.
+    ///
+    /// Parameters are optional by default.
     pub fn required(mut self) -> Self {
         self.required = true;
         self
     }
 
-    /// Sets the minimum value of the integer input.
+    /// Sets the minimum value of the integer.
     pub fn min_value(mut self, min_value: i64) -> Self {
         self.min_value = Some(min_value);
         self
     }
 
-    /// Sets the maximum value of the integer input.
+    /// Sets the maximum value of the integer.
     pub fn max_value(mut self, max_value: i64) -> Self {
         self.max_value = Some(max_value);
         self
@@ -379,6 +419,7 @@ impl From<SlashParamInteger> for SlashParam {
     }
 }
 
+#[doc(hidden)]
 impl From<SlashParamInteger> for tw::CommandOption {
     fn from(value: SlashParamInteger) -> Self {
         tw::CommandOption {
@@ -411,7 +452,7 @@ pub struct SlashParamNumber {
 }
 
 impl SlashParamNumber {
-    /// Creates a new number parameter.
+    /// Creates a number parameter.
     pub fn new(name: impl Into<String>, description: impl Into<String>) -> Self {
         let name = name.into();
         let description = description.into();
@@ -425,19 +466,21 @@ impl SlashParamNumber {
         }
     }
 
-    /// Sets the parameter as required.
+    /// Makes the parameter required.
+    ///
+    /// Parameters are optional by default.
     pub fn required(mut self) -> Self {
         self.required = true;
         self
     }
 
-    /// Sets the minimum value of the number input.
+    /// Sets the minimum value of the number.
     pub fn min_value(mut self, min_value: f64) -> Self {
         self.min_value = Some(min_value);
         self
     }
 
-    /// Sets the maximum value of the number input.
+    /// Sets the maximum value of the number.
     pub fn max_value(mut self, max_value: f64) -> Self {
         self.max_value = Some(max_value);
         self
@@ -450,6 +493,7 @@ impl From<SlashParamNumber> for SlashParam {
     }
 }
 
+#[doc(hidden)]
 impl From<SlashParamNumber> for tw::CommandOption {
     fn from(value: SlashParamNumber) -> Self {
         tw::CommandOption {
@@ -479,7 +523,7 @@ pub struct SlashParamBoolean {
 }
 
 impl SlashParamBoolean {
-    /// Creates a new boolean parameter.
+    /// Creates a boolean parameter.
     pub fn new(name: impl Into<String>, description: impl Into<String>) -> Self {
         let name = name.into();
         let description = description.into();
@@ -491,7 +535,9 @@ impl SlashParamBoolean {
         }
     }
 
-    /// Sets the parameter as required.
+    /// Makes the parameter required.
+    ///
+    /// Parameters are optional by default.
     pub fn required(mut self) -> Self {
         self.required = true;
         self
@@ -504,6 +550,7 @@ impl From<SlashParamBoolean> for SlashParam {
     }
 }
 
+#[doc(hidden)]
 impl From<SlashParamBoolean> for tw::CommandOption {
     fn from(value: SlashParamBoolean) -> Self {
         tw::CommandOption {
@@ -533,7 +580,7 @@ pub struct SlashParamUser {
 }
 
 impl SlashParamUser {
-    /// Creates a new user parameter.
+    /// Creates a user parameter.
     pub fn new(name: impl Into<String>, description: impl Into<String>) -> Self {
         let name = name.into();
         let description = description.into();
@@ -545,7 +592,9 @@ impl SlashParamUser {
         }
     }
 
-    /// Sets the parameter as required.
+    /// Makes the parameter required.
+    ///
+    /// Parameters are optional by default.
     pub fn required(mut self) -> Self {
         self.required = true;
         self
@@ -558,6 +607,7 @@ impl From<SlashParamUser> for SlashParam {
     }
 }
 
+#[doc(hidden)]
 impl From<SlashParamUser> for tw::CommandOption {
     fn from(value: SlashParamUser) -> Self {
         tw::CommandOption {
@@ -587,7 +637,7 @@ pub struct SlashParamRole {
 }
 
 impl SlashParamRole {
-    /// Creates a new role parameter.
+    /// Creates a role parameter.
     pub fn new(name: impl Into<String>, description: impl Into<String>) -> Self {
         let name = name.into();
         let description = description.into();
@@ -599,7 +649,9 @@ impl SlashParamRole {
         }
     }
 
-    /// Sets the parameter as required.
+    /// Makes the parameter required.
+    ///
+    /// Parameters are optional by default.
     pub fn required(mut self) -> Self {
         self.required = true;
         self
@@ -612,6 +664,7 @@ impl From<SlashParamRole> for SlashParam {
     }
 }
 
+#[doc(hidden)]
 impl From<SlashParamRole> for tw::CommandOption {
     fn from(value: SlashParamRole) -> Self {
         tw::CommandOption {

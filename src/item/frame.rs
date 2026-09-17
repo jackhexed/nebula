@@ -130,6 +130,7 @@ impl Frame {
     }
 }
 
+#[doc(hidden)]
 impl From<Frame> for tw::Container {
     fn from(value: Frame) -> Self {
         Self {
@@ -148,14 +149,17 @@ impl From<Frame> for tw::Container {
 /// that is converted into a valid frame item. See the list below:
 ///
 /// * [`Row`]
-///     * [`Button`](crate::item::Button)
+///     * [`Button`]
 ///     * `[Button; 1..=5]`
 /// * [`Text`]
 ///     * [`String`]
 ///     * `&str`
 #[derive(Debug)]
 pub enum FrameItem {
+    /// A [`Row`].
     Row(Row),
+
+    /// A [`Text`].
     Text(Text),
 }
 
@@ -167,45 +171,47 @@ impl From<Row> for FrameItem {
 }
 
 impl From<Button> for FrameItem {
-    /// Converts a [`Button`] into a [`FrameItem`].
-    ///
-    /// This conversion wraps the button in a [`Row`], as a frame cannot hold a
-    /// button directly.
+    /// Converts a [`Button`] into a [`FrameItem`] by wrapping it in a [`Row`].
     fn from(value: Button) -> Self {
         Self::Row(Row::from(value))
     }
 }
 
 impl From<[Button; 1]> for FrameItem {
-    /// Converts an array of one [`Button`] into a [`FrameItem`].
+    /// Converts an array of one [`Button`] into a [`FrameItem`] by wrapping it
+    /// in a [`Row`].
     fn from(value: [Button; 1]) -> Self {
         Self::Row(Row::from(value))
     }
 }
 
 impl From<[Button; 2]> for FrameItem {
-    /// Converts an array of two [`Button`]s into a [`FrameItem`].
+    /// Converts an array of two [`Button`]s into a [`FrameItem`] by wrapping
+    /// them in a [`Row`].
     fn from(value: [Button; 2]) -> Self {
         Self::Row(Row::from(value))
     }
 }
 
 impl From<[Button; 3]> for FrameItem {
-    /// Converts an array of three [`Button`]s into a [`FrameItem`].
+    /// Converts an array of three [`Button`]s into a [`FrameItem`] by wrapping
+    /// them in a [`Row`].
     fn from(value: [Button; 3]) -> Self {
         Self::Row(Row::from(value))
     }
 }
 
 impl From<[Button; 4]> for FrameItem {
-    /// Converts an array of four [`Button`]s into a [`FrameItem`].
+    /// Converts an array of four [`Button`]s into a [`FrameItem`] by wrapping
+    /// them in a [`Row`].
     fn from(value: [Button; 4]) -> Self {
         Self::Row(Row::from(value))
     }
 }
 
 impl From<[Button; 5]> for FrameItem {
-    /// Converts an array of five [`Button`]s into a [`FrameItem`].
+    /// Converts an array of five [`Button`]s into a [`FrameItem`] by wrapping
+    /// them in a [`Row`].
     fn from(value: [Button; 5]) -> Self {
         Self::Row(Row::from(value))
     }
@@ -219,25 +225,30 @@ impl From<Text> for FrameItem {
 }
 
 impl From<String> for FrameItem {
-    /// Converts a [`String`] into a [`FrameItem`].
+    /// Converts a [`String`] into a [`FrameItem`] by wrapping it in a [`Text`].
     ///
-    /// This conversion wraps the string in a [`Text`], as a frame cannot hold a
-    /// string directly.
+    /// # Panics
+    ///
+    /// This function will panic if the string is not between 1 and 4000
+    /// characters long.
     fn from(value: String) -> Self {
         Self::Text(value.into())
     }
 }
 
 impl From<&str> for FrameItem {
-    /// Converts a `&str` into a [`FrameItem`].
+    /// Converts a `&str` into a [`FrameItem`] by wrapping it in a [`Text`].
     ///
-    /// This conversion wraps the string in a [`Text`], as a frame cannot hold a
-    /// string directly.
+    /// # Panics
+    ///
+    /// This function will panic if the string is not between 1 and 4000
+    /// characters long.
     fn from(value: &str) -> Self {
         Self::Text(value.into())
     }
 }
 
+#[doc(hidden)]
 impl From<FrameItem> for tw::Component {
     fn from(value: FrameItem) -> Self {
         match value {
