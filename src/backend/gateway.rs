@@ -6,7 +6,7 @@ use std::sync::{
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
 use twilight_gateway::StreamExt;
 
-use crate::{Bot, Error, action::ActionCtx, backend::ResponseSink, shared::Shared};
+use crate::{Bot, Error, action::Action, backend::ResponseSink, shared::Shared};
 
 mod tw {
     pub use twilight_gateway::{CloseFrame, Event, EventTypeFlags, Intents, Shard, ShardId};
@@ -116,7 +116,7 @@ where
                 if let tw::Event::InteractionCreate(interaction) = event {
                     let sink = ResponseSink::new(None);
 
-                    handler(ActionCtx::parse(shared, sink, interaction.0)).await;
+                    handler(Action::parse(shared, sink, interaction.0)).await;
                 }
             })
         };

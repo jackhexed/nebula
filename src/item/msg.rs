@@ -102,8 +102,7 @@ impl Msg {
     /// action.
     ///
     /// Messages are visible to everyone by default. An ephemeral message is not
-    /// persisted, and cannot be edited once the
-    /// [action's token](crate::action::ActionCtx::action_token) expires.
+    /// persisted, and cannot be edited once the action's token expires.
     pub fn ephemeral(mut self, ephemeral: bool) -> Self {
         self.ephemeral = ephemeral;
         self

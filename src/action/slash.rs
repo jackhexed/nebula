@@ -1,10 +1,12 @@
-use std::{collections::HashMap, ops::Deref};
+use std::collections::HashMap;
 
 use crate::{
-    Snowflake,
-    action::ActionCtx,
-    model::{Role, User},
-    snowflake::{RoleMarker, UserMarker},
+    Error, Snowflake,
+    action::common::Common,
+    backend::{Response, ResponseKind},
+    item::Msg,
+    model::{Guild, Role, User},
+    snowflake::{ActionMarker, RoleMarker, UserMarker},
 };
 
 mod tw {
@@ -14,21 +16,48 @@ mod tw {
 
 /// The context for a [`Slash`](crate::slash::Slash) command that was run.
 pub struct SlashCtx {
-    action_ctx: ActionCtx,
+    common: Common,
 
     path: Box<str>,
     args: HashMap<Box<str>, SlashArg>,
 }
 
-impl Deref for SlashCtx {
-    type Target = ActionCtx;
-
-    fn deref(&self) -> &Self::Target {
-        &self.action_ctx
-    }
-}
-
 impl SlashCtx {
+    /// Replies to the command with the given message.
+    pub async fn reply(&self, msg: impl Into<Msg>) -> Result<(), Error> {
+        let msg = msg.into();
+        let response = Response::new(
+            self.common.action_id(),
+            self.common.action_token(),
+            ResponseKind::Reply(msg),
+        );
+
+        self.common
+            .sink()
+            .send(self.common.shared(), response)
+            .await
+    }
+
+    /// Returns the action's snowflake.
+    pub fn action_id(&self) -> Snowflake<ActionMarker> {
+        self.common.action_id()
+    }
+
+    /// Returns the action's token.
+    pub fn action_token(&self) -> &str {
+        self.common.action_token()
+    }
+
+    /// Returns the guild the command was run in.
+    pub fn guild(&self) -> &Guild {
+        self.common.guild()
+    }
+
+    /// Returns the user who ran the command.
+    pub fn user(&self) -> &User {
+        self.common.user()
+    }
+
     /// Returns the command's path: its name followed by any subcommand group
     /// and subcommand names, separated by spaces, such as `"config set"`.
     pub fn path(&self) -> &str {
@@ -77,7 +106,7 @@ impl SlashCtx {
 
     /// Parses a slash command action from the given action context and command
     /// data.
-    pub(crate) fn parse(action_ctx: ActionCtx, data: Box<tw::CommandData>) -> Self {
+    pub(crate) fn parse(common: Common, data: Box<tw::CommandData>) -> Self {
         let mut path = data.name;
         let mut options = data.options;
 
@@ -104,16 +133,12 @@ impl SlashCtx {
             .map(|opt| {
                 (
                     opt.name.into_boxed_str(),
-                    SlashArg::parse(&action_ctx, opt.value),
+                    SlashArg::parse(&common, opt.value),
                 )
             })
             .collect();
 
-        Self {
-            action_ctx,
-            path,
-            args,
-        }
+        Self { common, path, args }
     }
 }
 
@@ -152,7 +177,7 @@ pub enum SlashArg {
 impl SlashArg {
     /// Parses a slash command argument from the given action context and
     /// command option value.
-    fn parse(action_ctx: &ActionCtx, value: tw::CommandOptionValue) -> Self {
+    fn parse(common: &Common, value: tw::CommandOptionValue) -> Self {
         match value {
             tw::CommandOptionValue::Boolean(bool) => Self::Boolean(bool),
             tw::CommandOptionValue::Integer(int) => Self::Integer(int),
@@ -161,14 +186,14 @@ impl SlashArg {
 
             tw::CommandOptionValue::User(user_id) => {
                 let user_id = Snowflake::from(user_id);
-                let user = User::new(action_ctx.model_ctx(), user_id);
+                let user = User::new(common.model_ctx(), user_id);
 
                 Self::User(user)
             }
 
             tw::CommandOptionValue::Role(role_id) => {
                 let role_id = Snowflake::from(role_id);
-                let role = Role::new(action_ctx.model_ctx(), action_ctx.guild().id(), role_id);
+                let role = Role::new(common.model_ctx(), common.guild().id(), role_id);
 
                 Self::Role(role)
             }
