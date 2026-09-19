@@ -25,8 +25,8 @@ mod tw {
 /// ```
 ///
 /// Each item is anything implementing `Into<FrameItem>`, which includes
-/// all valid frame items and many convenience types. See [`FrameItem`] for
-/// details.
+/// all valid frame items and many convenience types, or an `Option` of one.
+/// A `None` item is skipped. See [`FrameItem`] for details.
 ///
 /// # Panics
 ///
@@ -91,18 +91,26 @@ impl Frame {
 
     /// Appends an item to the frame.
     ///
-    /// See [`FrameItem`] for what a frame accepts.
+    /// See [`FrameItem`] for what a frame accepts. An `Option` of any of those
+    /// is accepted too, and passing `None` leaves the frame unchanged, so an
+    /// item can be included conditionally without breaking the builder chain.
     ///
     /// # Panics
     ///
     /// This function will panic if the frame already holds 40 items.
-    pub fn item(mut self, item: impl Into<FrameItem>) -> Self {
+    #[allow(private_bounds)]
+    pub fn item(mut self, item: impl IntoFrameItem) -> Self {
+        let item = match item.into_frame_item() {
+            Some(item) => item,
+            None => return self,
+        };
+
         assert!(
             self.items.len() < 40,
             "a frame cannot hold more than 40 items"
         );
 
-        self.items.push(item.into());
+        self.items.push(item);
         self
     }
 
@@ -154,6 +162,8 @@ impl From<Frame> for tw::Container {
 /// * [`Text`]
 ///     * [`String`]
 ///     * `&str`
+///
+/// [`Frame::item`] also accepts an `Option` of any of these, skipping `None`.
 #[derive(Debug)]
 pub enum FrameItem {
     /// A [`Row`].
@@ -161,6 +171,28 @@ pub enum FrameItem {
 
     /// A [`Text`].
     Text(Text),
+}
+
+pub(crate) trait IntoFrameItem {
+    fn into_frame_item(self) -> Option<FrameItem>;
+}
+
+impl<T> IntoFrameItem for T
+where
+    T: Into<FrameItem>,
+{
+    fn into_frame_item(self) -> Option<FrameItem> {
+        Some(self.into())
+    }
+}
+
+impl<T> IntoFrameItem for Option<T>
+where
+    T: Into<FrameItem>,
+{
+    fn into_frame_item(self) -> Option<FrameItem> {
+        self.map(Into::into)
+    }
 }
 
 impl From<Row> for FrameItem {

@@ -15,6 +15,14 @@
 //! holding it, and an array of up to five [`Button`]s becomes a [`Row`] of
 //! those buttons.
 //!
+//! Builder methods that append a child ([`Msg::item`], [`Frame::item`],
+//! [`Row::button`]) also accept an `Option` of it and skip `None`. Without
+//! this, including an item conditionally would mean breaking the tree apart
+//! into `let` bindings and `if` statements. Instead, `cond.then(|| ...)` fits
+//! inline. This is done through a private trait on the method rather than a
+//! [`From`] impl, since an `Option` is not an item and should not convert into
+//! one anywhere else.
+//!
 //! # Macros
 //!
 //! Each item has a macro that is usually shorter than the equivalent builder

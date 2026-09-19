@@ -7,23 +7,31 @@ mod tw {
 
 /// Creates a [`Row`].
 ///
-/// Every argument is a [`Button`], and a row holds one to five of them.
+/// Every argument is a [`Button`] or an `Option<Button>`, and a row holds one
+/// to five buttons. A `None` argument is skipped, which makes it easy to
+/// include a button conditionally.
 ///
 /// ```
 /// use nebula::{button, row};
 ///
+/// let has_next = true;
+///
 /// let controls = row!(
 ///     button!(secondary: "prev", "Previous"),
-///     button!(secondary: "next", "Next"),
+///     has_next.then(|| button!(secondary: "next", "Next")),
 /// );
 /// ```
 ///
-/// Passing no buttons, or more than five, is a compile error. Use [`Row::new`]
-/// to build a row whose length is not known until runtime.
+/// Passing no arguments is a compile error.
+///
+/// # Panics
+///
+/// This macro uses [`Row::button`], which panics if more than five buttons are
+/// added. See the [`Row`] docs for details.
 #[macro_export]
 macro_rules! row {
     ($($button:expr),+ $(,)?) => {
-        $crate::item::Row::from([$($button),*])
+        $crate::item::Row::new() $(.button($button))+
     };
 }
 
@@ -53,10 +61,18 @@ impl Row {
 
     /// Appends a button to the row.
     ///
+    /// Passing `None` leaves the row unchanged, so a button can be included
+    /// conditionally without breaking the builder chain.
+    ///
     /// # Panics
     ///
     /// This function will panic if the row already holds five buttons.
-    pub fn button(mut self, button: Button) -> Self {
+    pub fn button(mut self, button: impl Into<Option<Button>>) -> Self {
+        let button = match button.into() {
+            Some(button) => button,
+            None => return self,
+        };
+
         assert!(
             self.buttons.len() < 5,
             "an action row cannot hold more than 5 buttons"

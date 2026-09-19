@@ -25,8 +25,8 @@ mod tw {
 /// ```
 ///
 /// Each item is anything implementing `Into<MsgItem>`, which includes
-/// all valid message items and many convenience types. See [`MsgItem`] for
-/// details.
+/// all valid message items and many convenience types, or an `Option` of one.
+/// A `None` item is skipped. See [`MsgItem`] for details.
 ///
 /// # Panics
 ///
@@ -83,18 +83,29 @@ impl Msg {
 
     /// Appends an item to the message.
     ///
-    /// See [`MsgItem`] for what a message accepts.
+    /// See [`MsgItem`] for what a message accepts. An `Option` of any of those
+    /// is accepted too, and passing `None` leaves the message unchanged, so an
+    /// item can be included conditionally without breaking the builder chain.
     ///
     /// # Panics
     ///
     /// This function will panic if the message already holds 40 items.
-    pub fn item(mut self, item: impl Into<MsgItem>) -> Self {
+    #[allow(private_bounds)]
+    pub fn item<T>(mut self, item: T) -> Self
+    where
+        T: IntoMsgItem,
+    {
+        let item = match item.into_msg_item() {
+            Some(item) => item,
+            None => return self,
+        };
+
         assert!(
             self.items.len() < 40,
             "a message cannot hold more than 40 items"
         );
 
-        self.items.push(item.into());
+        self.items.push(item);
         self
     }
 
@@ -109,94 +120,12 @@ impl Msg {
     }
 }
 
-impl From<Frame> for Msg {
-    /// Converts a [`Frame`] into a [`Msg`] holding it.
-    fn from(value: Frame) -> Self {
-        Self::new().item(value)
-    }
-}
-
-impl From<Row> for Msg {
-    /// Converts a [`Row`] into a [`Msg`] holding it.
-    fn from(value: Row) -> Self {
-        Self::new().item(value)
-    }
-}
-
-impl From<Button> for Msg {
-    /// Converts a [`Button`] into a [`Msg`] holding it, wrapped in a [`Row`].
-    fn from(value: Button) -> Self {
-        Self::new().item(value)
-    }
-}
-
-impl From<[Button; 1]> for Msg {
-    /// Converts an array of one [`Button`] into a [`Msg`] holding it, wrapped
-    /// in a [`Row`].
-    fn from(value: [Button; 1]) -> Self {
-        Self::new().item(value)
-    }
-}
-
-impl From<[Button; 2]> for Msg {
-    /// Converts an array of two [`Button`]s into a [`Msg`] holding them,
-    /// wrapped in a [`Row`].
-    fn from(value: [Button; 2]) -> Self {
-        Self::new().item(value)
-    }
-}
-
-impl From<[Button; 3]> for Msg {
-    /// Converts an array of three [`Button`]s into a [`Msg`] holding them,
-    /// wrapped in a [`Row`].
-    fn from(value: [Button; 3]) -> Self {
-        Self::new().item(value)
-    }
-}
-
-impl From<[Button; 4]> for Msg {
-    /// Converts an array of four [`Button`]s into a [`Msg`] holding them,
-    /// wrapped in a [`Row`].
-    fn from(value: [Button; 4]) -> Self {
-        Self::new().item(value)
-    }
-}
-
-impl From<[Button; 5]> for Msg {
-    /// Converts an array of five [`Button`]s into a [`Msg`] holding them,
-    /// wrapped in a [`Row`].
-    fn from(value: [Button; 5]) -> Self {
-        Self::new().item(value)
-    }
-}
-
-impl From<Text> for Msg {
-    /// Converts a [`Text`] into a [`Msg`] holding it.
-    fn from(value: Text) -> Self {
-        Self::new().item(value)
-    }
-}
-
-impl From<String> for Msg {
-    /// Converts a [`String`] into a [`Msg`] holding it, wrapped in a [`Text`].
-    ///
-    /// # Panics
-    ///
-    /// This function will panic if the string is not between 1 and 4000
-    /// characters long.
-    fn from(value: String) -> Self {
-        Self::new().item(value)
-    }
-}
-
-impl From<&str> for Msg {
-    /// Converts a `&str` into a [`Msg`] holding it, wrapped in a [`Text`].
-    ///
-    /// # Panics
-    ///
-    /// This function will panic if the string is not between 1 and 4000
-    /// characters long.
-    fn from(value: &str) -> Self {
+impl<T> From<T> for Msg
+where
+    T: Into<MsgItem>,
+{
+    /// Converts a valid message item into a [`Msg`] holding it.
+    fn from(value: T) -> Self {
         Self::new().item(value)
     }
 }
@@ -239,6 +168,10 @@ impl From<Msg> for tw::InteractionResponseData {
 /// * [`Text`]
 ///     * [`String`]
 ///     * `&str`
+///
+/// [`Msg::item`] also accepts an `Option` of any of these, skipping `None`.
+/// `Option` does not convert into a `MsgItem` itself, so [`Msg`]'s `From`
+/// impls do not accept it.
 #[derive(Debug)]
 pub enum MsgItem {
     /// A [`Frame`].
@@ -249,6 +182,28 @@ pub enum MsgItem {
 
     /// A [`Text`].
     Text(Text),
+}
+
+pub(crate) trait IntoMsgItem {
+    fn into_msg_item(self) -> Option<MsgItem>;
+}
+
+impl<T> IntoMsgItem for T
+where
+    T: Into<MsgItem>,
+{
+    fn into_msg_item(self) -> Option<MsgItem> {
+        Some(self.into())
+    }
+}
+
+impl<T> IntoMsgItem for Option<T>
+where
+    T: Into<MsgItem>,
+{
+    fn into_msg_item(self) -> Option<MsgItem> {
+        self.map(Into::into)
+    }
 }
 
 impl From<Frame> for MsgItem {
