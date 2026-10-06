@@ -6,7 +6,7 @@ use std::sync::{
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
 use twilight_gateway::StreamExt;
 
-use crate::{Bot, Error, action::Action, backend::ResponseSink, shared::Shared};
+use crate::{Bot, action::Action, backend::ResponseSink, error::Error, shared::Shared};
 
 mod tw {
     pub use twilight_gateway::{CloseFrame, Event, EventTypeFlags, Intents, Shard, ShardId};
@@ -100,9 +100,10 @@ where
     }
 
     async fn start(&self) -> Result<(), Error> {
-        if self.started.swap(true, Ordering::AcqRel) {
-            return Err(Error::new("bot already started"));
-        }
+        assert!(
+            !self.started.swap(true, Ordering::AcqRel),
+            "gateway already started"
+        );
 
         let cancel = self.cancel.clone();
         let tracker = self.tracker.clone();
@@ -141,8 +142,9 @@ where
                         }
 
                         Some(Err(..)) => {}
+
                         None => {
-                            return Err(Error::new("gateway closed unexpectedly"));
+                            return Err(Error::msg("gateway closed unexpectedly"));
                         }
                     }
                 }
@@ -160,8 +162,9 @@ where
                 }
 
                 Some(Err(..)) => {}
+
                 None => {
-                    return Err(Error::new("gateway closed unexpectedly"));
+                    return Err(Error::msg("gateway closed unexpectedly"));
                 }
             }
         }

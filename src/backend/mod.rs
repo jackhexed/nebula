@@ -10,7 +10,7 @@ use std::cell::RefCell;
 
 use tokio::sync::oneshot;
 
-use crate::{Error, Snowflake, item::Msg, shared::Shared, snowflake::ActionMarker};
+use crate::{Snowflake, error::Error, item::Msg, shared::Shared, snowflake::ActionMarker};
 
 mod gateway;
 
@@ -51,7 +51,10 @@ impl ResponseSink {
     pub(crate) async fn send(&self, shared: &Shared, response: Response<'_>) -> Result<(), Error> {
         if let Some(tx) = self.tx.take() {
             tx.send(response.kind)
-                .map_err(|_| Error::new("oneshot closed unexpectedly"))
+                .map_err(|_| "oneshot closed unexpectedly")
+                .unwrap();
+
+            Ok(())
         } else {
             let id = response.action_id.into();
             let token = response.action_token;

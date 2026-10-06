@@ -1,47 +1,78 @@
+use std::fmt::Display;
+
 mod tw {
     pub use twilight_http::error::Error;
-    pub use twilight_http::response::DeserializeBodyError;
 }
 
-/// Nebula's error type.
-///
-/// Errors are meant to be logged or reported, not matched on, so this is a
-/// plain message implementing [`std::error::Error`]. It is returned only for
-/// I/O and Discord API failures; misusing Nebula's API panics instead.
 #[derive(Debug)]
 pub struct Error {
-    msg: String,
+    kind: Option<ErrorKind>,
+    source: Option<Box<dyn std::error::Error + Send + Sync>>,
 }
 
 impl Error {
-    /// Creates an error with the given message.
-    pub fn new(msg: impl Into<String>) -> Self {
-        Self { msg: msg.into() }
+    pub(crate) fn new(
+        kind: Option<ErrorKind>,
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+    ) -> Self {
+        Self { kind, source }
+    }
+
+    pub(crate) fn internal(source: impl std::error::Error + Send + Sync + 'static) -> Self {
+        Self::new(None, Some(Box::new(source)))
+    }
+
+    pub(crate) fn msg(msg: &'static str) -> Self {
+        Self::internal(Msg(msg))
+    }
+
+    pub fn kind(&self) -> Option<&ErrorKind> {
+        self.kind.as_ref()
     }
 }
 
-impl std::fmt::Display for Error {
+impl Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.msg)
+        if let Some(kind) = self.kind() {
+            write!(f, "{kind}")
+        } else if let Some(source) = self.source.as_ref() {
+            write!(f, "internal error: {source}")
+        } else {
+            write!(f, "internal error: unknown")
+        }
     }
 }
 
-impl std::error::Error for Error {}
+impl std::error::Error for Error {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        self.source.as_ref().map(|s| s.as_ref() as _)
+    }
+}
 
 #[doc(hidden)]
 impl From<tw::Error> for Error {
     fn from(value: tw::Error) -> Self {
-        Self {
-            msg: value.to_string(),
-        }
+        Self::internal(value)
     }
 }
 
-#[doc(hidden)]
-impl From<tw::DeserializeBodyError> for Error {
-    fn from(value: tw::DeserializeBodyError) -> Self {
-        Self {
-            msg: value.to_string(),
-        }
+#[non_exhaustive]
+#[derive(Debug)]
+pub enum ErrorKind {}
+
+impl Display for ErrorKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match *self {}
     }
 }
+
+#[derive(Debug)]
+struct Msg(&'static str);
+
+impl Display for Msg {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl std::error::Error for Msg {}
