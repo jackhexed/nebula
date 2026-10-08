@@ -1,176 +1,105 @@
-use std::sync::{
-    Arc,
-    atomic::{AtomicBool, Ordering},
-};
+use std::{future::Pending, time::Duration};
 
-use tokio_util::{sync::CancellationToken, task::TaskTracker};
+use tokio::time::Instant;
 use twilight_gateway::StreamExt;
 
-use crate::{Bot, action::Action, backend::ResponseSink, error::Error, shared::Shared};
+use crate::{Bot, backend::ResponseSink, error::Error};
 
 mod tw {
     pub use twilight_gateway::{CloseFrame, Event, EventTypeFlags, Intents, Shard, ShardId};
 }
 
-/// A backend that receives actions over the gateway.
+/// A backend that receives actions over the Discord gateway.
 ///
-/// This backend is for local testing, as it needs no public HTTP endpoint. It
-/// opens a single shard with no intents and ignores every event except
-/// interactions.
-///
-/// Clones are handles to the same gateway, so a clone can
-/// [`stop`](Self::stop) a gateway that another clone started.
-#[derive(Clone)]
-pub struct Gateway<T>
+/// This backend is intended for local testing, not for production use. It does
+/// not support sharding and only listens for interaction events.
+pub struct Gateway<T, S = Pending<()>>
 where
     T: Future<Output = ()> + Send + 'static,
-{
-    inner: Arc<Inner<T>>,
-}
-
-impl<T> Gateway<T>
-where
-    T: Future<Output = ()> + Send + 'static,
-{
-    /// Creates a gateway for the given bot.
-    ///
-    /// The gateway does not connect until [`start`](Self::start) is called.
-    pub fn new(bot: Bot<T>) -> Self {
-        let inner = Arc::new(Inner::new(bot));
-
-        Self { inner }
-    }
-
-    /// Connects to the gateway and handles actions until the gateway is
-    /// stopped.
-    ///
-    /// Each action is handled on its own task. After [`stop`](Self::stop) is
-    /// called, this function closes the connection and waits for running
-    /// handlers to finish before returning.
-    ///
-    /// # Errors
-    ///
-    /// This function will return an error if the gateway has already been
-    /// started, even if it has since stopped, or if the connection closes
-    /// unexpectedly.
-    pub async fn start(&self) -> Result<(), Error> {
-        self.inner.start().await
-    }
-
-    /// Tells the gateway to stop.
-    ///
-    /// This function returns immediately. [`start`](Self::start) returns once
-    /// shutdown completes.
-    pub fn stop(&self) {
-        self.inner.stop();
-    }
-}
-
-/// The state shared by every clone of a [`Gateway`].
-struct Inner<T>
-where
-    T: Future<Output = ()> + Send + 'static,
+    S: Future<Output = ()> + Send + 'static,
 {
     bot: Bot<T>,
-    cancel: CancellationToken,
-    tracker: TaskTracker,
-    started: AtomicBool,
+    shutdown: S,
 }
 
-impl<T> Inner<T>
+impl<T> Gateway<T, Pending<()>>
 where
     T: Future<Output = ()> + Send + 'static,
 {
-    fn new(bot: Bot<T>) -> Self {
-        let cancel = CancellationToken::new();
-        let tracker = TaskTracker::new();
-        let started = AtomicBool::new(false);
-
+    /// Creates a new gateway backend.
+    pub fn new(bot: Bot<T>) -> Self {
         Self {
             bot,
-            cancel,
-            tracker,
-            started,
+            shutdown: std::future::pending(),
+        }
+    }
+}
+
+impl<T, S> Gateway<T, S>
+where
+    T: Future<Output = ()> + Send + 'static,
+    S: Future<Output = ()> + Send + 'static,
+{
+    /// Attaches a shutdown future to the gateway backend.
+    ///
+    /// When the future completes, the gateway will gracefully close its
+    /// connection to Discord and stop receiving events.
+    pub fn with_shutdown<Sp>(self, shutdown: Sp) -> Gateway<T, Sp>
+    where
+        Sp: Future<Output = ()> + Send + 'static,
+    {
+        Gateway {
+            bot: self.bot,
+            shutdown,
         }
     }
 
-    fn stop(&self) {
-        self.cancel.cancel();
-        self.tracker.close();
-    }
+    /// Runs the gateway backend.
+    pub async fn run(self) -> Result<(), Error> {
+        let mut shutdown = std::pin::pin!(self.shutdown);
+        let bot = self.bot;
 
-    async fn start(&self) -> Result<(), Error> {
-        assert!(
-            !self.started.swap(true, Ordering::AcqRel),
-            "gateway already started"
-        );
+        let shardid = tw::ShardId::ONE;
+        let intents = tw::Intents::empty();
+        let mut shard = tw::Shard::new(shardid, bot.token().to_owned(), intents);
 
-        let cancel = self.cancel.clone();
-        let tracker = self.tracker.clone();
-        let shared = Shared::new(self.bot.token.clone(), self.bot.app_id);
-        let handler = self.bot.handler;
+        let wanted_events = tw::EventTypeFlags::INTERACTION_CREATE;
 
-        let spawn = |event| {
-            let shared = Arc::clone(&shared);
-
-            tracker.spawn(async move {
-                if let tw::Event::InteractionCreate(interaction) = event {
-                    let sink = ResponseSink::new(None);
-
-                    handler(Action::parse(shared, sink, interaction.0)).await;
-                }
-            })
-        };
-
-        let mut shard = tw::Shard::new(
-            tw::ShardId::ONE,
-            self.bot.token.clone(),
-            tw::Intents::empty(),
-        );
+        let mut closing = false;
+        let mut deadline = std::pin::pin!(tokio::time::sleep(Duration::MAX));
 
         loop {
             tokio::select! { biased;
-                _ = cancel.cancelled() => {
+                _ = &mut shutdown, if !closing => {
                     shard.close(tw::CloseFrame::NORMAL);
-                    break;
+
+                    deadline.as_mut().reset(Instant::now() + Duration::from_secs(5));
+                    closing = true;
                 }
 
-                event = shard.next_event(tw::EventTypeFlags::INTERACTION_CREATE) => {
-                    match event {
-                        Some(Ok(event)) => {
-                            spawn(event);
-                        }
-
-                        Some(Err(..)) => {}
-
-                        None => {
-                            return Err(Error::msg("gateway closed unexpectedly"));
-                        }
-                    }
-                }
-            }
-        }
-
-        loop {
-            match shard
-                .next_event(tw::EventTypeFlags::INTERACTION_CREATE)
-                .await
-            {
-                Some(Ok(tw::Event::GatewayClose(..))) => break,
-                Some(Ok(event)) => {
-                    spawn(event);
+                _ = &mut deadline, if closing => {
+                    return Err(Error::msg("timed out waiting for gateway to close"));
                 }
 
-                Some(Err(..)) => {}
+                event = shard.next_event(wanted_events) => {
+                    let event = match event {
+                        Some(Ok(event)) => event,
+                        Some(Err(_)) => continue,
+                        None => return Err(Error::msg("gateway fatally closed")),
+                    };
 
-                None => {
-                    return Err(Error::msg("gateway closed unexpectedly"));
+                    let interaction = match event {
+                        tw::Event::GatewayClose(_) if closing => break,
+                        tw::Event::InteractionCreate(interaction) => interaction.0,
+                        _ => continue,
+                    };
+
+                    bot.dispatch(ResponseSink::new(None), interaction);
                 }
             }
         }
 
-        tracker.close();
-        tracker.wait().await;
+        bot.close().await;
 
         Ok(())
     }
