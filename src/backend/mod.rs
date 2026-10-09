@@ -5,7 +5,7 @@ use std::sync::Mutex;
 
 use tokio::sync::oneshot;
 
-use crate::{Snowflake, error::Error, item::Msg, shared::Shared, snowflake::ActionMarker};
+use crate::{Snowflake, error::Error, item::Msg, rest::Rest, snowflake::ActionMarker};
 
 mod gateway;
 mod webhook;
@@ -43,7 +43,7 @@ impl ResponseSink {
     ///
     /// This function will return an error if the oneshot receiver was dropped,
     /// or if the REST call fails.
-    pub(crate) async fn send(&self, shared: &Shared, response: Response<'_>) -> Result<(), Error> {
+    pub(crate) async fn send(&self, rest: &Rest, response: Response<'_>) -> Result<(), Error> {
         if let Some(tx) = self.tx.lock().unwrap().take() {
             tx.send(response.kind)
                 .map_err(|_| Error::msg("oneshot closed unexpectedly"))
@@ -52,8 +52,7 @@ impl ResponseSink {
             let token = response.action_token;
             let response = response.kind.into();
 
-            shared
-                .interaction()
+            rest.interaction()
                 .create_response(id, token, &response)
                 .await?;
 

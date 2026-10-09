@@ -5,13 +5,13 @@ use crate::{
     backend::ResponseSink,
     cache::Cache,
     model::{Guild, ModelCtx, User},
-    shared::Shared,
+    rest::Rest,
     snowflake::ActionMarker,
 };
 
 /// The information every action shares.
 pub struct Common {
-    shared: Arc<Shared>,
+    rest: Arc<Rest>,
     cache: Arc<Cache>,
     sink: ResponseSink,
 
@@ -25,7 +25,7 @@ pub struct Common {
 impl Common {
     /// Returns a new `Common` instance.
     pub(crate) fn new(
-        shared: Arc<Shared>,
+        rest: Arc<Rest>,
         cache: Arc<Cache>,
         sink: ResponseSink,
         action_id: Snowflake<ActionMarker>,
@@ -34,7 +34,7 @@ impl Common {
         user: User,
     ) -> Self {
         Self {
-            shared,
+            rest,
             cache,
             sink,
             action_id,
@@ -44,9 +44,9 @@ impl Common {
         }
     }
 
-    /// Returns the shared state.
-    pub(crate) fn shared(&self) -> &Arc<Shared> {
-        &self.shared
+    /// Returns the REST API client.
+    pub(crate) fn rest(&self) -> &Arc<Rest> {
+        &self.rest
     }
 
     /// Returns the action's cache.
@@ -84,6 +84,6 @@ impl Common {
 
     /// Returns a model context for the action.
     pub(crate) fn model_ctx(&self) -> ModelCtx {
-        ModelCtx::new(Arc::clone(&self.shared), Arc::clone(&self.cache))
+        ModelCtx::new(Arc::clone(&self.rest), Arc::clone(&self.cache))
     }
 }

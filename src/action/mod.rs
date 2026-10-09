@@ -13,7 +13,7 @@ use crate::{
     backend::ResponseSink,
     cache::Cache,
     model::{Guild, ModelCtx, User},
-    shared::Shared,
+    rest::Rest,
 };
 
 mod common;
@@ -47,26 +47,22 @@ impl Action {
     ///
     /// This function will panic if the interaction was not performed in a
     /// guild, or is not an application command.
-    pub(crate) fn parse(
-        shared: Arc<Shared>,
-        sink: ResponseSink,
-        interaction: tw::Interaction,
-    ) -> Self {
+    pub(crate) fn parse(rest: Arc<Rest>, sink: ResponseSink, interaction: tw::Interaction) -> Self {
         let cache = Cache::new();
 
         let action_id = Snowflake::from(interaction.id);
         let action_token = interaction.token.into_boxed_str();
 
         // for now we only support guild interactions
-        let model_ctx = ModelCtx::new(Arc::clone(&shared), Arc::clone(&cache));
+        let model_ctx = ModelCtx::new(Arc::clone(&rest), Arc::clone(&cache));
         let guild_id = Snowflake::from(interaction.guild_id.unwrap());
         let guild = Guild::new(model_ctx, guild_id);
 
-        let model_ctx = ModelCtx::new(Arc::clone(&shared), Arc::clone(&cache));
+        let model_ctx = ModelCtx::new(Arc::clone(&rest), Arc::clone(&cache));
         let user_id = Snowflake::from(interaction.member.unwrap().user.unwrap().id);
         let user = User::new(model_ctx, user_id);
 
-        let common = Common::new(shared, cache, sink, action_id, action_token, guild, user);
+        let common = Common::new(rest, cache, sink, action_id, action_token, guild, user);
 
         match interaction.kind {
             tw::InteractionType::ApplicationCommand => {

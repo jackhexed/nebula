@@ -6,16 +6,16 @@ mod tw {
     pub use twilight_http::client::{Client, InteractionClient};
 }
 
-/// The state shared by every action: the HTTP client and application ID.
+/// The REST API client for the bot.
 ///
 /// This is the only route to Discord's REST API.
-pub(crate) struct Shared {
+pub(crate) struct Rest {
     client: tw::Client,
     app_id: Snowflake<AppMarker>,
 }
 
-impl Shared {
-    /// Creates shared state with the given token and application ID.
+impl Rest {
+    /// Creates a new REST API client with the given token and application ID.
     pub(crate) fn new(token: String, app_id: Snowflake<AppMarker>) -> Arc<Self> {
         let client = tw::Client::new(token);
 

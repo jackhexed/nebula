@@ -24,7 +24,7 @@
 
 use std::sync::Arc;
 
-use crate::{cache::Cache, shared::Shared};
+use crate::{cache::Cache, rest::Rest};
 
 mod guild;
 mod role;
@@ -34,25 +34,25 @@ pub use guild::Guild;
 pub use role::Role;
 pub use user::User;
 
-/// A context for model types, providing access to shared state and cache.
+/// A context for model types, providing access to the REST API and cache.
 ///
 /// Model types use this context to access cache data and to make web requests
-/// through the shared state, as well as to create new model entities.
+/// through the REST API, as well as to create new model entities.
 #[derive(Clone)]
 pub(crate) struct ModelCtx {
-    shared: Arc<Shared>,
+    rest: Arc<Rest>,
     cache: Arc<Cache>,
 }
 
 impl ModelCtx {
     /// Creates a new model context.
-    pub(crate) fn new(shared: Arc<Shared>, cache: Arc<Cache>) -> Self {
-        Self { shared, cache }
+    pub(crate) fn new(rest: Arc<Rest>, cache: Arc<Cache>) -> Self {
+        Self { rest, cache }
     }
 
-    /// Returns the shared state.
-    pub(crate) fn shared(&self) -> &Arc<Shared> {
-        &self.shared
+    /// Returns the REST API client.
+    pub(crate) fn rest(&self) -> &Arc<Rest> {
+        &self.rest
     }
 
     /// Returns the cache.

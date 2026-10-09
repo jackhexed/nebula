@@ -33,10 +33,7 @@ impl SlashCtx {
             ResponseKind::Reply(msg),
         );
 
-        self.common
-            .sink()
-            .send(self.common.shared(), response)
-            .await
+        self.common.sink().send(self.common.rest(), response).await
     }
 
     /// Returns the action's snowflake.

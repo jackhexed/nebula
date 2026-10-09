@@ -6,7 +6,7 @@ use crate::{
     Snowflake,
     action::Action,
     backend::{Gateway, ResponseSink, Webhook},
-    shared::Shared,
+    rest::Rest,
     snowflake::AppMarker,
 };
 
@@ -28,7 +28,7 @@ where
     /// The function called with every action the bot receives.
     handler: fn(Action) -> T,
 
-    shared: Arc<Shared>,
+    rest: Arc<Rest>,
     tracker: TaskTracker,
 }
 
@@ -39,7 +39,7 @@ where
     /// Creates a new bot with the given token, application ID, and action
     /// handler.
     pub fn new(token: String, app_id: Snowflake<AppMarker>, handler: fn(Action) -> T) -> Self {
-        let shared = Shared::new(token.clone(), app_id);
+        let rest = Rest::new(token.clone(), app_id);
         let tracker = TaskTracker::new();
 
         Self {
@@ -47,7 +47,7 @@ where
             app_id,
             handler,
 
-            shared,
+            rest,
             tracker,
         }
     }
@@ -64,11 +64,11 @@ where
 
     /// Dispatches a new action to the bot's handler.
     pub(crate) fn dispatch(&self, sink: ResponseSink, interaction: tw::Interaction) {
-        let shared = Arc::clone(&self.shared);
+        let rest = Arc::clone(&self.rest);
         let handler = self.handler;
 
         self.tracker.spawn(async move {
-            handler(Action::parse(shared, sink, interaction)).await;
+            handler(Action::parse(rest, sink, interaction)).await;
         });
     }
 

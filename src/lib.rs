@@ -1,6 +1,6 @@
 mod bot;
 mod cache;
-mod shared;
+mod rest;
 
 pub mod action;
 pub mod backend;
