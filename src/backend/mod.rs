@@ -6,7 +6,7 @@
 //! Nebula is built around the HTTP endpoint, served by a webhook backend that
 //! does not exist yet. [`Gateway`] is for local testing only.
 
-use std::cell::RefCell;
+use std::sync::Mutex;
 
 use tokio::sync::oneshot;
 
@@ -29,16 +29,14 @@ mod tw {
 /// sent with a `create_response` REST call, which is what the gateway backend
 /// uses.
 pub(crate) struct ResponseSink {
-    tx: RefCell<Option<oneshot::Sender<ResponseKind>>>,
+    tx: Mutex<Option<oneshot::Sender<ResponseKind>>>,
 }
 
 impl ResponseSink {
     /// Creates a sink that sends through `tx`, or through the REST API if `tx`
     /// is `None`.
     pub(crate) fn new(tx: Option<oneshot::Sender<ResponseKind>>) -> Self {
-        Self {
-            tx: RefCell::new(tx),
-        }
+        Self { tx: Mutex::new(tx) }
     }
 
     /// Sends a response.
@@ -51,7 +49,7 @@ impl ResponseSink {
     /// This function will return an error if the oneshot receiver was dropped,
     /// or if the REST call fails.
     pub(crate) async fn send(&self, shared: &Shared, response: Response<'_>) -> Result<(), Error> {
-        if let Some(tx) = self.tx.take() {
+        if let Some(tx) = self.tx.lock().unwrap().take() {
             tx.send(response.kind)
                 .map_err(|_| Error::msg("oneshot closed unexpectedly"))
         } else {
