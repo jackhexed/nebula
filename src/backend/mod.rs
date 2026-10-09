@@ -1,10 +1,5 @@
 //! Contains backends, which receive actions from Discord and send back
 //! responses.
-//!
-//! Discord [delivers interactions](https://docs.discord.com/developers/interactions/overview)
-//! either over the gateway or as HTTP requests to an interactions endpoint.
-//! Nebula is built around the HTTP endpoint, served by a webhook backend that
-//! does not exist yet. [`Gateway`] is for local testing only.
 
 use std::sync::Mutex;
 
