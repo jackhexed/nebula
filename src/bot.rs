@@ -5,7 +5,7 @@ use tokio_util::task::TaskTracker;
 use crate::{
     Snowflake,
     action::Action,
-    backend::{Gateway, ResponseSink},
+    backend::{Gateway, ResponseSink, Webhook},
     shared::Shared,
     snowflake::AppMarker,
 };
@@ -55,6 +55,11 @@ where
     /// Creates a new gateway backend for the bot.
     pub fn gateway(self) -> Gateway<T> {
         Gateway::new(self)
+    }
+
+    /// Creates a new webhook backend for the bot with the given public key.
+    pub fn webhook(self, key: &str) -> Webhook<T> {
+        Webhook::new(self, key)
     }
 
     /// Dispatches a new action to the bot's handler.

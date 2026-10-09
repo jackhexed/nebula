@@ -13,8 +13,10 @@ use tokio::sync::oneshot;
 use crate::{Snowflake, error::Error, item::Msg, shared::Shared, snowflake::ActionMarker};
 
 mod gateway;
+mod webhook;
 
 pub use gateway::Gateway;
+pub use webhook::Webhook;
 
 mod tw {
     pub use twilight_model::http::interaction::{InteractionResponse, InteractionResponseType};
@@ -51,10 +53,7 @@ impl ResponseSink {
     pub(crate) async fn send(&self, shared: &Shared, response: Response<'_>) -> Result<(), Error> {
         if let Some(tx) = self.tx.take() {
             tx.send(response.kind)
-                .map_err(|_| "oneshot closed unexpectedly")
-                .unwrap();
-
-            Ok(())
+                .map_err(|_| Error::msg("oneshot closed unexpectedly"))
         } else {
             let id = response.action_id.into();
             let token = response.action_token;
