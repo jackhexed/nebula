@@ -21,11 +21,6 @@
 //!
 //! Because a model is only a snowflake and a handle, models are cheap to clone
 //! and compare equal when their snowflakes are equal.
-
-use std::sync::Arc;
-
-use crate::{cache::Cache, rest::Rest};
-
 mod guild;
 mod role;
 mod user;
@@ -33,30 +28,3 @@ mod user;
 pub use guild::Guild;
 pub use role::Role;
 pub use user::User;
-
-/// A context for model types, providing access to the REST API and cache.
-///
-/// Model types use this context to access cache data and to make web requests
-/// through the REST API, as well as to create new model entities.
-#[derive(Clone)]
-pub(crate) struct ModelCtx {
-    rest: Arc<Rest>,
-    cache: Arc<Cache>,
-}
-
-impl ModelCtx {
-    /// Creates a new model context.
-    pub(crate) fn new(rest: Arc<Rest>, cache: Arc<Cache>) -> Self {
-        Self { rest, cache }
-    }
-
-    /// Returns the REST API client.
-    pub(crate) fn rest(&self) -> &Arc<Rest> {
-        &self.rest
-    }
-
-    /// Returns the cache.
-    pub(crate) fn cache(&self) -> &Arc<Cache> {
-        &self.cache
-    }
-}

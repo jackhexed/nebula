@@ -1,6 +1,6 @@
 use crate::{
     Snowflake,
-    model::ModelCtx,
+    ctx::Ctx,
     snowflake::{GuildMarker, RoleMarker},
 };
 
@@ -11,7 +11,7 @@ use crate::{
 /// [Discord docs](https://docs.discord.com/developers/topics/permissions#role-object-role-structure)
 #[derive(Clone)]
 pub struct Role {
-    model_ctx: ModelCtx,
+    ctx: Ctx,
     guild_id: Snowflake<GuildMarker>,
     role_id: Snowflake<RoleMarker>,
 }
@@ -31,12 +31,14 @@ impl From<&Role> for Snowflake<RoleMarker> {
 impl Role {
     /// Creates a role model from its guild's snowflake and its own.
     pub(crate) fn new(
-        model_ctx: ModelCtx,
+        ctx: impl Into<Ctx>,
         guild_id: Snowflake<GuildMarker>,
         role_id: Snowflake<RoleMarker>,
     ) -> Self {
+        let ctx = ctx.into();
+
         Self {
-            model_ctx,
+            ctx,
             guild_id,
             role_id,
         }

@@ -1,5 +1,6 @@
 mod bot;
 mod cache;
+mod ctx;
 mod rest;
 
 pub mod action;
@@ -11,4 +12,5 @@ pub mod slash;
 pub mod snowflake;
 
 pub use bot::Bot;
+pub use ctx::Ctx;
 pub use snowflake::Snowflake;

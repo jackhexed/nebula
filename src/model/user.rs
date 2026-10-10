@@ -1,4 +1,4 @@
-use crate::{Snowflake, model::ModelCtx, snowflake::UserMarker};
+use crate::{Snowflake, ctx::Ctx, snowflake::UserMarker};
 
 /// A Discord user.
 ///
@@ -7,7 +7,7 @@ use crate::{Snowflake, model::ModelCtx, snowflake::UserMarker};
 /// [Discord docs](https://docs.discord.com/developers/resources/user#user-object-user-structure)
 #[derive(Clone)]
 pub struct User {
-    model_ctx: ModelCtx,
+    ctx: Ctx,
     user_id: Snowflake<UserMarker>,
 }
 
@@ -25,8 +25,10 @@ impl From<&User> for Snowflake<UserMarker> {
 
 impl User {
     /// Creates a user model from its snowflake.
-    pub(crate) fn new(model_ctx: ModelCtx, user_id: Snowflake<UserMarker>) -> Self {
-        Self { model_ctx, user_id }
+    pub(crate) fn new(ctx: impl Into<Ctx>, user_id: Snowflake<UserMarker>) -> Self {
+        let ctx = ctx.into();
+
+        Self { ctx, user_id }
     }
 
     /// Returns the user's snowflake.

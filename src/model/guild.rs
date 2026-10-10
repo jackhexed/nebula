@@ -1,4 +1,4 @@
-use crate::{Snowflake, model::ModelCtx, snowflake::GuildMarker};
+use crate::{Snowflake, ctx::Ctx, snowflake::GuildMarker};
 
 /// A Discord guild, also called a server.
 ///
@@ -7,7 +7,7 @@ use crate::{Snowflake, model::ModelCtx, snowflake::GuildMarker};
 /// [Discord docs](https://docs.discord.com/developers/resources/guild#guild-object-guild-structure)
 #[derive(Clone)]
 pub struct Guild {
-    model_ctx: ModelCtx,
+    ctx: Ctx,
     guild_id: Snowflake<GuildMarker>,
 }
 
@@ -25,11 +25,10 @@ impl From<&Guild> for Snowflake<GuildMarker> {
 
 impl Guild {
     /// Creates a guild model from its snowflake.
-    pub(crate) fn new(model_ctx: ModelCtx, guild_id: Snowflake<GuildMarker>) -> Self {
-        Self {
-            model_ctx,
-            guild_id,
-        }
+    pub(crate) fn new(ctx: impl Into<Ctx>, guild_id: Snowflake<GuildMarker>) -> Self {
+        let ctx = ctx.into();
+
+        Self { ctx, guild_id }
     }
 
     /// Returns the guild's snowflake.

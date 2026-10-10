@@ -9,14 +9,15 @@ use std::sync::Arc;
 
 use crate::{
     Snowflake,
-    action::common::Common,
-    backend::ResponseSink,
-    cache::Cache,
-    model::{Guild, ModelCtx, User},
+    backend::{Response, ResponseKind, ResponseSink},
+    ctx::Ctx,
+    error::Error,
+    item::Msg,
+    model::{Guild, User},
     rest::Rest,
+    snowflake::ActionMarker,
 };
 
-mod common;
 mod slash;
 
 pub use slash::{SlashArg, SlashCtx};
@@ -48,21 +49,19 @@ impl Action {
     /// This function will panic if the interaction was not performed in a
     /// guild, or is not an application command.
     pub(crate) fn parse(rest: Arc<Rest>, sink: ResponseSink, interaction: tw::Interaction) -> Self {
-        let cache = Cache::new();
+        let ctx = Ctx::new(rest);
 
         let action_id = Snowflake::from(interaction.id);
         let action_token = interaction.token.into_boxed_str();
 
         // for now we only support guild interactions
-        let model_ctx = ModelCtx::new(Arc::clone(&rest), Arc::clone(&cache));
         let guild_id = Snowflake::from(interaction.guild_id.unwrap());
-        let guild = Guild::new(model_ctx, guild_id);
+        let guild = Guild::new(&ctx, guild_id);
 
-        let model_ctx = ModelCtx::new(Arc::clone(&rest), Arc::clone(&cache));
         let user_id = Snowflake::from(interaction.member.unwrap().user.unwrap().id);
-        let user = User::new(model_ctx, user_id);
+        let user = User::new(&ctx, user_id);
 
-        let common = Common::new(rest, cache, sink, action_id, action_token, guild, user);
+        let ctx = ActionCtx::new(ctx, sink, action_id, action_token, guild, user);
 
         match interaction.kind {
             tw::InteractionType::ApplicationCommand => {
@@ -70,10 +69,68 @@ impl Action {
                     unreachable!()
                 };
 
-                Action::Slash(SlashCtx::parse(common, data))
+                Action::Slash(SlashCtx::parse(ctx, data))
             }
 
             _ => unreachable!(),
         }
+    }
+}
+
+/// A context for an action, which holds the action's ID and token, the guild
+/// it was performed in, and the user who performed it.
+pub(crate) struct ActionCtx {
+    ctx: Ctx,
+    sink: ResponseSink,
+
+    action_id: Snowflake<ActionMarker>,
+    action_token: Box<str>,
+
+    guild: Guild,
+    user: User,
+}
+
+impl ActionCtx {
+    /// Creates a new ActionCtx.
+    pub(crate) fn new(
+        ctx: Ctx,
+        sink: ResponseSink,
+        action_id: Snowflake<ActionMarker>,
+        action_token: Box<str>,
+        guild: Guild,
+        user: User,
+    ) -> Self {
+        Self {
+            ctx,
+            sink,
+            action_id,
+            action_token,
+            guild,
+            user,
+        }
+    }
+
+    /// Returns the guild the action was performed in.
+    pub(crate) fn guild(&self) -> &Guild {
+        &self.guild
+    }
+
+    /// Returns the user who performed the action.
+    pub(crate) fn user(&self) -> &User {
+        &self.user
+    }
+
+    /// Replies to the action with the given message.
+    pub(crate) async fn reply(&self, msg: impl Into<Msg>) -> Result<(), Error> {
+        let msg = msg.into();
+        let response = Response::new(self.action_id, &self.action_token, ResponseKind::Reply(msg));
+
+        self.sink.send(self.ctx.rest(), response).await
+    }
+}
+
+impl From<&ActionCtx> for Ctx {
+    fn from(ctx: &ActionCtx) -> Self {
+        ctx.ctx.clone()
     }
 }
