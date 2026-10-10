@@ -3,7 +3,12 @@ use std::{future::Pending, time::Duration};
 use tokio::time::Instant;
 use twilight_gateway::StreamExt;
 
-use crate::{Bot, backend::ResponseSink, error::Error};
+use crate::{
+    Bot,
+    action::Action,
+    backend::{Dispatch, ResponseSink},
+    error::Error,
+};
 
 mod tw {
     pub use twilight_gateway::{CloseFrame, Event, EventTypeFlags, Intents, Shard, ShardId};
@@ -18,7 +23,8 @@ where
     T: Future<Output = ()> + Send + 'static,
     S: Future<Output = ()> + Send + 'static,
 {
-    bot: Bot<T>,
+    token: String,
+    dispatch: Dispatch<T>,
     shutdown: S,
 }
 
@@ -26,11 +32,16 @@ impl<T> Gateway<T, Pending<()>>
 where
     T: Future<Output = ()> + Send + 'static,
 {
-    /// Creates a new gateway backend.
-    pub fn new(bot: Bot<T>) -> Self {
+    /// Creates a new gateway backend with the given bot and action callback.
+    pub fn new(bot: &Bot, callback: fn(Action) -> T) -> Self {
+        let token = bot.rest().token().to_owned();
+        let dispatch = Dispatch::new(bot.rest(), callback);
+        let shutdown = std::future::pending();
+
         Self {
-            bot,
-            shutdown: std::future::pending(),
+            token,
+            dispatch,
+            shutdown,
         }
     }
 }
@@ -48,20 +59,25 @@ where
     where
         Sp: Future<Output = ()> + Send + 'static,
     {
+        let token = self.token;
+        let dispatch = self.dispatch;
+
         Gateway {
-            bot: self.bot,
+            token,
+            dispatch,
             shutdown,
         }
     }
 
     /// Runs the gateway backend.
     pub async fn run(self) -> Result<(), Error> {
+        let token = self.token;
+        let dispatch = self.dispatch;
         let mut shutdown = std::pin::pin!(self.shutdown);
-        let bot = self.bot;
 
         let shardid = tw::ShardId::ONE;
         let intents = tw::Intents::empty();
-        let mut shard = tw::Shard::new(shardid, bot.token().to_owned(), intents);
+        let mut shard = tw::Shard::new(shardid, token, intents);
 
         let wanted_events = tw::EventTypeFlags::INTERACTION_CREATE;
 
@@ -78,6 +94,7 @@ where
                 }
 
                 _ = &mut deadline, if closing => {
+                    dispatch.stop().await;
                     return Err(Error::msg("timed out waiting for gateway to close"));
                 }
 
@@ -85,7 +102,10 @@ where
                     let event = match event {
                         Some(Ok(event)) => event,
                         Some(Err(_)) => continue,
-                        None => return Err(Error::msg("gateway fatally closed")),
+                        None => {
+                            dispatch.stop().await;
+                            return Err(Error::msg("gateway fatally closed"));
+                        },
                     };
 
                     let interaction = match event {
@@ -94,12 +114,12 @@ where
                         _ => continue,
                     };
 
-                    bot.dispatch(ResponseSink::new(None), interaction);
+                    dispatch.send(ResponseSink::new(None), interaction);
                 }
             }
         }
 
-        bot.close().await;
+        dispatch.stop().await;
 
         Ok(())
     }

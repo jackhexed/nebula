@@ -1,11 +1,14 @@
 //! Contains backends, which receive actions from Discord and send back
 //! responses.
 
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use tokio::sync::oneshot;
+use tokio_util::task::TaskTracker;
 
-use crate::{Snowflake, error::Error, item::Msg, rest::Rest, snowflake::ActionMarker};
+use crate::{
+    Snowflake, action::Action, error::Error, item::Msg, rest::Rest, snowflake::ActionMarker,
+};
 
 mod gateway;
 mod webhook;
@@ -14,7 +17,50 @@ pub use gateway::Gateway;
 pub use webhook::Webhook;
 
 mod tw {
+    pub use twilight_model::application::interaction::Interaction;
     pub use twilight_model::http::interaction::{InteractionResponse, InteractionResponseType};
+}
+
+/// Dispatches actions to the action callback and tracks the tasks it spawns.
+pub(crate) struct Dispatch<T>
+where
+    T: Future<Output = ()> + Send + 'static,
+{
+    rest: Arc<Rest>,
+    callback: fn(Action) -> T,
+    tasks: TaskTracker,
+}
+
+impl<T> Dispatch<T>
+where
+    T: Future<Output = ()> + Send + 'static,
+{
+    /// Creates a new dispatch with the given REST client and action callback.
+    pub(crate) fn new(rest: Arc<Rest>, callback: fn(Action) -> T) -> Self {
+        let tasks = TaskTracker::new();
+
+        Self {
+            rest,
+            callback,
+            tasks,
+        }
+    }
+
+    /// Dispatches an action to the action callback.
+    pub(crate) fn send(&self, sink: ResponseSink, interaction: tw::Interaction) {
+        let rest = Arc::clone(&self.rest);
+        let callback = self.callback;
+
+        self.tasks.spawn(async move {
+            callback(Action::parse(rest, sink, interaction)).await;
+        });
+    }
+
+    /// Waits for all tasks spawned by the dispatch to complete.
+    pub(crate) async fn stop(&self) {
+        self.tasks.close();
+        self.tasks.wait().await;
+    }
 }
 
 /// Delivers an action's response.

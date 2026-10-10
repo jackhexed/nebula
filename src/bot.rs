@@ -1,85 +1,49 @@
 use std::sync::Arc;
 
-use tokio_util::task::TaskTracker;
-
 use crate::{
     Snowflake,
     action::Action,
-    backend::{Gateway, ResponseSink, Webhook},
+    backend::{Gateway, Webhook},
     rest::Rest,
     snowflake::AppMarker,
 };
 
-mod tw {
-    pub use twilight_model::application::interaction::Interaction;
-}
-
-/// A bot's credentials and action handler.
-pub struct Bot<T>
-where
-    T: Future<Output = ()> + Send + 'static,
-{
-    /// The bot's token, from the Discord developer portal.
-    token: String,
-
-    /// The bot's application ID, from the Discord developer portal.
-    app_id: Snowflake<AppMarker>,
-
-    /// The function called with every action the bot receives.
-    handler: fn(Action) -> T,
-
+/// A bot, identified by its token and application ID.
+///
+/// Backends created from the same bot share its REST client.
+pub struct Bot {
     rest: Arc<Rest>,
-    tracker: TaskTracker,
 }
 
-impl<T> Bot<T>
-where
-    T: Future<Output = ()> + Send + 'static,
-{
-    /// Creates a new bot with the given token, application ID, and action
-    /// handler.
-    pub fn new(token: String, app_id: Snowflake<AppMarker>, handler: fn(Action) -> T) -> Self {
-        let rest = Rest::new(token.clone(), app_id);
-        let tracker = TaskTracker::new();
+impl Bot {
+    /// Creates a new bot with the given token and application ID, both from
+    /// the Discord developer portal.
+    pub fn new(token: String, app_id: Snowflake<AppMarker>) -> Self {
+        let rest = Rest::new(token, app_id);
 
-        Self {
-            token,
-            app_id,
-            handler,
-
-            rest,
-            tracker,
-        }
+        Self { rest }
     }
 
-    /// Creates a new gateway backend for the bot.
-    pub fn gateway(self) -> Gateway<T> {
-        Gateway::new(self)
+    /// Returns the REST client for this bot.
+    pub(crate) fn rest(&self) -> Arc<Rest> {
+        self.rest.clone()
     }
 
-    /// Creates a new webhook backend for the bot with the given public key.
-    pub fn webhook(self, key: &str) -> Webhook<T> {
-        Webhook::new(self, key)
+    /// Creates a new webhook backend for this bot, with the given public key
+    /// and action callback.
+    pub fn webhook<T>(&self, key: &str, callback: fn(Action) -> T) -> Webhook<T>
+    where
+        T: Future<Output = ()> + Send + 'static,
+    {
+        Webhook::new(self, key, callback)
     }
 
-    /// Dispatches a new action to the bot's handler.
-    pub(crate) fn dispatch(&self, sink: ResponseSink, interaction: tw::Interaction) {
-        let rest = Arc::clone(&self.rest);
-        let handler = self.handler;
-
-        self.tracker.spawn(async move {
-            handler(Action::parse(rest, sink, interaction)).await;
-        });
-    }
-
-    /// Returns the bot's token.
-    pub(crate) fn token(&self) -> &str {
-        &self.token
-    }
-
-    /// Closes the bot's task tracker, waiting for all tasks to finish.
-    pub(crate) async fn close(&self) {
-        self.tracker.close();
-        self.tracker.wait().await;
+    /// Creates a new gateway backend for this bot, with the given action
+    /// callback.
+    pub fn gateway<T>(&self, callback: fn(Action) -> T) -> Gateway<T>
+    where
+        T: Future<Output = ()> + Send + 'static,
+    {
+        Gateway::new(self, callback)
     }
 }

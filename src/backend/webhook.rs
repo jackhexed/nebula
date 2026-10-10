@@ -3,7 +3,11 @@ use ed25519_dalek::{PUBLIC_KEY_LENGTH, SIGNATURE_LENGTH, Signature, Verifier, Ve
 use hex::FromHex;
 use tokio::sync::oneshot;
 
-use crate::{Bot, backend::ResponseSink};
+use crate::{
+    Bot,
+    action::Action,
+    backend::{Dispatch, ResponseSink},
+};
 
 mod tw {
     pub use twilight_model::application::interaction::{Interaction, InteractionType};
@@ -20,7 +24,7 @@ pub struct Webhook<T>
 where
     T: Future<Output = ()> + Send + 'static,
 {
-    bot: Bot<T>,
+    dispatch: Dispatch<T>,
     key: VerifyingKey,
 }
 
@@ -28,21 +32,24 @@ impl<T> Webhook<T>
 where
     T: Future<Output = ()> + Send + 'static,
 {
-    /// Creates a new webhook backend with the given bot and public key.
-    pub fn new(bot: Bot<T>, key: &str) -> Self {
+    /// Creates a new webhook backend with the given bot, public key, and action
+    /// callback.
+    pub fn new(bot: &Bot, key: &str, callback: fn(Action) -> T) -> Self {
         let key = <[u8; PUBLIC_KEY_LENGTH]>::from_hex(key).expect("invalid public key");
         let key = VerifyingKey::from_bytes(&key).expect("invalid public key");
 
-        Self { bot, key }
+        let dispatch = Dispatch::new(bot.rest(), callback);
+
+        Self { dispatch, key }
     }
 
-    /// Closes the webhook backend, shutting down the bot.
+    /// Stops the webhook backend.
     ///
-    /// This method will wait until all in-flight requests are completed before
+    /// This method will wait until all in-flight actions are completed before
     /// returning. It is recommended to call this method when the server is
     /// shutting down.
-    pub async fn close(&self) {
-        self.bot.close().await;
+    pub async fn stop(&self) {
+        self.dispatch.stop().await;
     }
 
     /// Dispatches an HTTP request to the webhook backend.
@@ -80,7 +87,7 @@ where
         let (tx, rx) = oneshot::channel();
         let sink = ResponseSink::new(Some(tx));
 
-        self.bot.dispatch(sink, interaction);
+        self.dispatch.send(sink, interaction);
 
         let Ok(response) = rx.await else {
             return status(http::StatusCode::INTERNAL_SERVER_ERROR);
