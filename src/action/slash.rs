@@ -15,14 +15,25 @@ mod tw {
 }
 
 /// The context for a [`Slash`](crate::slash::Slash) command that was run.
-pub struct SlashCtx {
-    ctx: ActionCtx,
+pub struct SlashCtx<S = ()>
+where
+    S: Send + Sync + 'static,
+{
+    ctx: ActionCtx<S>,
 
     path: Box<str>,
     args: HashMap<Box<str>, SlashArg>,
 }
 
-impl SlashCtx {
+impl<S> SlashCtx<S>
+where
+    S: Send + Sync + 'static,
+{
+    /// Returns the bot's state.
+    pub fn state(&self) -> &S {
+        self.ctx.state()
+    }
+
     /// Replies to the command with the given message.
     pub async fn reply(&self, msg: impl Into<Msg>) -> Result<(), Error> {
         self.ctx.reply(msg).await
@@ -86,7 +97,7 @@ impl SlashCtx {
 
     /// Parses a slash command action from the given action context and command
     /// data.
-    pub(crate) fn parse(ctx: ActionCtx, data: Box<tw::CommandData>) -> Self {
+    pub(crate) fn parse(ctx: ActionCtx<S>, data: Box<tw::CommandData>) -> Self {
         let mut path = data.name;
         let mut options = data.options;
 
@@ -152,7 +163,10 @@ pub enum SlashArg {
 impl SlashArg {
     /// Parses a slash command argument from the given action context and
     /// command option value.
-    fn parse(ctx: &ActionCtx, value: tw::CommandOptionValue) -> Self {
+    fn parse<S>(ctx: &ActionCtx<S>, value: tw::CommandOptionValue) -> Self
+    where
+        S: Send + Sync + 'static,
+    {
         match value {
             tw::CommandOptionValue::Boolean(bool) => Self::Boolean(bool),
             tw::CommandOptionValue::Integer(int) => Self::Integer(int),

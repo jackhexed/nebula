@@ -21,7 +21,7 @@ mod tw {
 pub struct Gateway<T, S, Sd = Pending<()>>
 where
     T: Future<Output = ()> + Send + 'static,
-    S: Clone + Send + 'static,
+    S: Send + Sync + 'static,
     Sd: Future<Output = ()> + Send + 'static,
 {
     token: String,
@@ -32,15 +32,15 @@ where
 impl<T, S> Gateway<T, S, Pending<()>>
 where
     T: Future<Output = ()> + Send + 'static,
-    S: Clone + Send + 'static,
+    S: Send + Sync + 'static,
 {
     /// Creates a new gateway backend with the given bot, state and action
     /// callback.
     ///
     /// State must be cloneable. Each action will receive a clone of the state.
-    pub fn new(bot: &Bot, state: S, callback: fn(Action, S) -> T) -> Self {
+    pub fn new(bot: &Bot<S>, callback: fn(Action<S>) -> T) -> Self {
         let token = bot.rest().token().to_owned();
-        let dispatch = Dispatch::new(bot.rest(), state, callback);
+        let dispatch = Dispatch::new(bot.rest(), bot.state(), callback);
         let shutdown = std::future::pending();
 
         Self {
@@ -54,7 +54,7 @@ where
 impl<T, S, Sd> Gateway<T, S, Sd>
 where
     T: Future<Output = ()> + Send + 'static,
-    S: Clone + Send + 'static,
+    S: Send + Sync + 'static,
     Sd: Future<Output = ()> + Send + 'static,
 {
     /// Attaches a shutdown future to the gateway backend.

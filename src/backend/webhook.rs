@@ -23,7 +23,7 @@ mod tw {
 pub struct Webhook<T, S>
 where
     T: Future<Output = ()> + Send + 'static,
-    S: Clone + Send + 'static,
+    S: Send + Sync + 'static,
 {
     dispatch: Dispatch<T, S>,
     key: VerifyingKey,
@@ -32,17 +32,17 @@ where
 impl<T, S> Webhook<T, S>
 where
     T: Future<Output = ()> + Send + 'static,
-    S: Clone + Send + 'static,
+    S: Send + Sync + 'static,
 {
-    /// Creates a new webhook backend with the given bot, public key, state, and
-    /// action callback.
+    /// Creates a new webhook backend with the given bot, public key, action
+    /// callback.
     ///
     /// State must be cloneable. Each action will receive a clone of the state.
-    pub fn new(bot: &Bot, key: &str, state: S, callback: fn(Action, S) -> T) -> Self {
+    pub fn new(bot: &Bot<S>, key: &str, callback: fn(Action<S>) -> T) -> Self {
         let key = <[u8; PUBLIC_KEY_LENGTH]>::from_hex(key).expect("invalid public key");
         let key = VerifyingKey::from_bytes(&key).expect("invalid public key");
 
-        let dispatch = Dispatch::new(bot.rest(), state, callback);
+        let dispatch = Dispatch::new(bot.rest(), bot.state(), callback);
 
         Self { dispatch, key }
     }

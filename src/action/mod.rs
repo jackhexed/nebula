@@ -36,19 +36,33 @@ mod tw {
 /// whatever is specific to its kind.
 ///
 /// [Discord docs](https://docs.discord.com/developers/interactions/receiving-and-responding#interaction-object-interaction-structure)
-pub enum Action {
+pub enum Action<S = ()>
+where
+    S: Send + Sync + 'static,
+{
     /// A slash command was run.
-    Slash(SlashCtx),
+    Slash(SlashCtx<S>),
 }
 
-impl Action {
+impl<S> Action<S>
+where
+    S: Send + Sync + 'static,
+{
     /// Parses a Twilight interaction into an action.
     ///
     /// # Panics
     ///
     /// This function will panic if the interaction was not performed in a
     /// guild, or is not an application command.
-    pub(crate) fn parse(rest: Arc<Rest>, sink: ResponseSink, interaction: tw::Interaction) -> Self {
+    pub(crate) fn parse(
+        rest: Arc<Rest>,
+        sink: ResponseSink,
+        state: Arc<S>,
+        interaction: tw::Interaction,
+    ) -> Self
+    where
+        S: Send + Sync + 'static,
+    {
         let ctx = Ctx::new(rest);
 
         let action_id = Snowflake::from(interaction.id);
@@ -61,7 +75,7 @@ impl Action {
         let user_id = Snowflake::from(interaction.member.unwrap().user.unwrap().id);
         let user = User::new(&ctx, user_id);
 
-        let ctx = ActionCtx::new(ctx, sink, action_id, action_token, guild, user);
+        let ctx = ActionCtx::new(ctx, sink, state, action_id, action_token, guild, user);
 
         match interaction.kind {
             tw::InteractionType::ApplicationCommand => {
@@ -79,9 +93,13 @@ impl Action {
 
 /// A context for an action, which holds the action's ID and token, the guild
 /// it was performed in, and the user who performed it.
-pub(crate) struct ActionCtx {
+pub(crate) struct ActionCtx<S>
+where
+    S: Send + Sync + 'static,
+{
     ctx: Ctx,
     sink: ResponseSink,
+    state: Arc<S>,
 
     action_id: Snowflake<ActionMarker>,
     action_token: Box<str>,
@@ -90,11 +108,15 @@ pub(crate) struct ActionCtx {
     user: User,
 }
 
-impl ActionCtx {
+impl<S> ActionCtx<S>
+where
+    S: Send + Sync + 'static,
+{
     /// Creates a new ActionCtx.
     pub(crate) fn new(
         ctx: Ctx,
         sink: ResponseSink,
+        state: Arc<S>,
         action_id: Snowflake<ActionMarker>,
         action_token: Box<str>,
         guild: Guild,
@@ -103,11 +125,17 @@ impl ActionCtx {
         Self {
             ctx,
             sink,
+            state,
             action_id,
             action_token,
             guild,
             user,
         }
+    }
+
+    /// Returns the bot's state.
+    pub(crate) fn state(&self) -> &S {
+        &self.state
     }
 
     /// Returns the guild the action was performed in.
@@ -129,8 +157,11 @@ impl ActionCtx {
     }
 }
 
-impl From<&ActionCtx> for Ctx {
-    fn from(ctx: &ActionCtx) -> Self {
+impl<S> From<&ActionCtx<S>> for Ctx
+where
+    S: Send + Sync + 'static,
+{
+    fn from(ctx: &ActionCtx<S>) -> Self {
         ctx.ctx.clone()
     }
 }
