@@ -39,19 +39,21 @@ impl Bot {
 
     /// Creates a new webhook backend for this bot, with the given public key
     /// and action callback.
-    pub fn webhook<T>(&self, key: &str, callback: fn(Action) -> T) -> Webhook<T>
+    pub fn webhook<T, S>(&self, key: &str, state: S, callback: fn(Action, S) -> T) -> Webhook<T, S>
     where
         T: Future<Output = ()> + Send + 'static,
+        S: Clone + Send + 'static,
     {
-        Webhook::new(self, key, callback)
+        Webhook::new(self, key, state, callback)
     }
 
     /// Creates a new gateway backend for this bot, with the given action
     /// callback.
-    pub fn gateway<T>(&self, callback: fn(Action) -> T) -> Gateway<T>
+    pub fn gateway<T, S>(&self, state: S, callback: fn(Action, S) -> T) -> Gateway<T, S>
     where
         T: Future<Output = ()> + Send + 'static,
+        S: Clone + Send + 'static,
     {
-        Gateway::new(self, callback)
+        Gateway::new(self, state, callback)
     }
 }

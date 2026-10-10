@@ -22,25 +22,29 @@ mod tw {
 }
 
 /// Dispatches actions to the action callback and tracks the tasks it spawns.
-pub(crate) struct Dispatch<T>
+pub(crate) struct Dispatch<T, S>
 where
     T: Future<Output = ()> + Send + 'static,
+    S: Clone + Send + 'static,
 {
     rest: Arc<Rest>,
-    callback: fn(Action) -> T,
+    state: S,
+    callback: fn(Action, S) -> T,
     tasks: TaskTracker,
 }
 
-impl<T> Dispatch<T>
+impl<T, S> Dispatch<T, S>
 where
     T: Future<Output = ()> + Send + 'static,
+    S: Clone + Send + 'static,
 {
     /// Creates a new dispatch with the given REST client and action callback.
-    pub(crate) fn new(rest: Arc<Rest>, callback: fn(Action) -> T) -> Self {
+    pub(crate) fn new(rest: Arc<Rest>, state: S, callback: fn(Action, S) -> T) -> Self {
         let tasks = TaskTracker::new();
 
         Self {
             rest,
+            state,
             callback,
             tasks,
         }
@@ -50,9 +54,10 @@ where
     pub(crate) fn send(&self, sink: ResponseSink, interaction: tw::Interaction) {
         let rest = Arc::clone(&self.rest);
         let callback = self.callback;
+        let state = Clone::clone(&self.state);
 
         self.tasks.spawn(async move {
-            callback(Action::parse(rest, sink, interaction)).await;
+            callback(Action::parse(rest, sink, interaction), state).await;
         });
     }
 

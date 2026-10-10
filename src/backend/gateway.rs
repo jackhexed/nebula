@@ -18,24 +18,29 @@ mod tw {
 ///
 /// This backend is intended for local testing, not for production use. It does
 /// not support sharding and only listens for interaction events.
-pub struct Gateway<T, S = Pending<()>>
+pub struct Gateway<T, S, Sd = Pending<()>>
 where
     T: Future<Output = ()> + Send + 'static,
-    S: Future<Output = ()> + Send + 'static,
+    S: Clone + Send + 'static,
+    Sd: Future<Output = ()> + Send + 'static,
 {
     token: String,
-    dispatch: Dispatch<T>,
-    shutdown: S,
+    dispatch: Dispatch<T, S>,
+    shutdown: Sd,
 }
 
-impl<T> Gateway<T, Pending<()>>
+impl<T, S> Gateway<T, S, Pending<()>>
 where
     T: Future<Output = ()> + Send + 'static,
+    S: Clone + Send + 'static,
 {
-    /// Creates a new gateway backend with the given bot and action callback.
-    pub fn new(bot: &Bot, callback: fn(Action) -> T) -> Self {
+    /// Creates a new gateway backend with the given bot, state and action
+    /// callback.
+    ///
+    /// State must be cloneable. Each action will receive a clone of the state.
+    pub fn new(bot: &Bot, state: S, callback: fn(Action, S) -> T) -> Self {
         let token = bot.rest().token().to_owned();
-        let dispatch = Dispatch::new(bot.rest(), callback);
+        let dispatch = Dispatch::new(bot.rest(), state, callback);
         let shutdown = std::future::pending();
 
         Self {
@@ -46,18 +51,19 @@ where
     }
 }
 
-impl<T, S> Gateway<T, S>
+impl<T, S, Sd> Gateway<T, S, Sd>
 where
     T: Future<Output = ()> + Send + 'static,
-    S: Future<Output = ()> + Send + 'static,
+    S: Clone + Send + 'static,
+    Sd: Future<Output = ()> + Send + 'static,
 {
     /// Attaches a shutdown future to the gateway backend.
     ///
     /// When the future completes, the gateway will gracefully close its
     /// connection to Discord and stop receiving events.
-    pub fn with_shutdown<Sp>(self, shutdown: Sp) -> Gateway<T, Sp>
+    pub fn with_shutdown<Sdp>(self, shutdown: Sdp) -> Gateway<T, S, Sdp>
     where
-        Sp: Future<Output = ()> + Send + 'static,
+        Sdp: Future<Output = ()> + Send + 'static,
     {
         let token = self.token;
         let dispatch = self.dispatch;

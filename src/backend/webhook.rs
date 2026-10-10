@@ -20,25 +20,29 @@ mod tw {
 /// HTTP requests from Discord. It verifies the requests, parses the
 /// interactions, and dispatches them to the bot for processing. The responses
 /// are sent back to Discord through the HTTP response.
-pub struct Webhook<T>
+pub struct Webhook<T, S>
 where
     T: Future<Output = ()> + Send + 'static,
+    S: Clone + Send + 'static,
 {
-    dispatch: Dispatch<T>,
+    dispatch: Dispatch<T, S>,
     key: VerifyingKey,
 }
 
-impl<T> Webhook<T>
+impl<T, S> Webhook<T, S>
 where
     T: Future<Output = ()> + Send + 'static,
+    S: Clone + Send + 'static,
 {
-    /// Creates a new webhook backend with the given bot, public key, and action
-    /// callback.
-    pub fn new(bot: &Bot, key: &str, callback: fn(Action) -> T) -> Self {
+    /// Creates a new webhook backend with the given bot, public key, state, and
+    /// action callback.
+    ///
+    /// State must be cloneable. Each action will receive a clone of the state.
+    pub fn new(bot: &Bot, key: &str, state: S, callback: fn(Action, S) -> T) -> Self {
         let key = <[u8; PUBLIC_KEY_LENGTH]>::from_hex(key).expect("invalid public key");
         let key = VerifyingKey::from_bytes(&key).expect("invalid public key");
 
-        let dispatch = Dispatch::new(bot.rest(), callback);
+        let dispatch = Dispatch::new(bot.rest(), state, callback);
 
         Self { dispatch, key }
     }
