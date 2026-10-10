@@ -9,6 +9,7 @@ use std::sync::Arc;
 
 use crate::{
     Snowflake,
+    action::button::ButtonCtx,
     backend::{Response, ResponseKind, ResponseSink},
     ctx::Ctx,
     error::Error,
@@ -18,6 +19,7 @@ use crate::{
     snowflake::ActionMarker,
 };
 
+mod button;
 mod slash;
 
 pub use slash::{SlashArg, SlashCtx};
@@ -26,6 +28,7 @@ mod tw {
     pub use twilight_model::application::interaction::Interaction;
     pub use twilight_model::application::interaction::InteractionData;
     pub use twilight_model::application::interaction::InteractionType;
+    pub use twilight_model::channel::message::component::ComponentType;
 }
 
 /// An action a user performed, such as running a slash command.
@@ -42,6 +45,9 @@ where
 {
     /// A slash command was run.
     Slash(SlashCtx<S>),
+
+    /// A button was clicked.
+    Button(ButtonCtx<S>),
 }
 
 impl<S> Action<S>
@@ -86,7 +92,19 @@ where
                 Action::Slash(SlashCtx::parse(ctx, data))
             }
 
-            _ => unreachable!(),
+            tw::InteractionType::MessageComponent => {
+                let Some(tw::InteractionData::MessageComponent(data)) = interaction.data else {
+                    unreachable!()
+                };
+
+                match data.component_type {
+                    tw::ComponentType::Button => Action::Button(ButtonCtx::parse(ctx, data)),
+
+                    _ => todo!(),
+                }
+            }
+
+            _ => todo!(),
         }
     }
 }
