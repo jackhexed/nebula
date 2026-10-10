@@ -158,6 +158,9 @@ pub enum SlashArg {
 
     /// The value of a [role parameter](crate::slash::SlashParamRole).
     Role(Role),
+
+    /// An unknown or unsupported argument type.
+    Unknown,
 }
 
 impl SlashArg {
@@ -187,7 +190,7 @@ impl SlashArg {
                 Self::Role(role)
             }
 
-            _ => unreachable!(),
+            _ => Self::Unknown,
         }
     }
 }

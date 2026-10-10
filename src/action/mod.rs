@@ -56,16 +56,13 @@ where
 {
     /// Parses a Twilight interaction into an action.
     ///
-    /// # Panics
-    ///
-    /// This function will panic if the interaction was not performed in a
-    /// guild, or is not an application command.
+    /// Will return none if the interaction is not a supported variant.
     pub(crate) fn parse(
         rest: Arc<Rest>,
         sink: ResponseSink,
         state: Arc<S>,
         interaction: tw::Interaction,
-    ) -> Self
+    ) -> Option<Self>
     where
         S: Send + Sync + 'static,
     {
@@ -75,10 +72,10 @@ where
         let action_token = interaction.token.into_boxed_str();
 
         // for now we only support guild interactions
-        let guild_id = Snowflake::from(interaction.guild_id.unwrap());
+        let guild_id = Snowflake::from(interaction.guild_id?);
         let guild = Guild::new(&ctx, guild_id);
 
-        let user_id = Snowflake::from(interaction.member.unwrap().user.unwrap().id);
+        let user_id = Snowflake::from(interaction.member?.user?.id);
         let user = User::new(&ctx, user_id);
 
         let ctx = ActionCtx::new(ctx, sink, state, action_id, action_token, guild, user);
@@ -89,7 +86,7 @@ where
                     unreachable!()
                 };
 
-                Action::Slash(SlashCtx::parse(ctx, data))
+                Some(Action::Slash(SlashCtx::parse(ctx, data)))
             }
 
             tw::InteractionType::MessageComponent => {
@@ -98,13 +95,13 @@ where
                 };
 
                 match data.component_type {
-                    tw::ComponentType::Button => Action::Button(ButtonCtx::parse(ctx, data)),
+                    tw::ComponentType::Button => Some(Action::Button(ButtonCtx::parse(ctx, data))),
 
-                    _ => todo!(),
+                    _ => None,
                 }
             }
 
-            _ => todo!(),
+            _ => None,
         }
     }
 }

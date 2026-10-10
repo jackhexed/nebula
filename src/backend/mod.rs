@@ -57,7 +57,9 @@ where
         let callback = self.callback;
 
         self.tasks.spawn(async move {
-            callback(Action::parse(rest, sink, state, interaction)).await;
+            if let Some(action) = Action::parse(rest, sink, state, interaction) {
+                callback(action).await;
+            }
         });
     }
 
