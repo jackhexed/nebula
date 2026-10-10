@@ -1,6 +1,12 @@
 use std::sync::Arc;
 
-use crate::{cache::Cache, rest::Rest};
+use crate::{
+    Snowflake,
+    cache::Cache,
+    model::{Guild, User},
+    rest::Rest,
+    snowflake::{GuildMarker, UserMarker},
+};
 
 /// A context that holds the REST API client and cache.
 #[derive(Clone)]
@@ -27,6 +33,16 @@ impl Ctx {
     /// Returns the cache.
     pub(crate) fn cache(&self) -> &Arc<Cache> {
         &self.cache
+    }
+
+    /// Creates a guild with this context.
+    pub fn guild(&self, guild_id: impl Into<Snowflake<GuildMarker>>) -> Guild {
+        Guild::new(self, guild_id.into())
+    }
+
+    /// Creates a user with this context.
+    pub fn user(&self, user_id: impl Into<Snowflake<UserMarker>>) -> User {
+        User::new(self, user_id.into())
     }
 }
 

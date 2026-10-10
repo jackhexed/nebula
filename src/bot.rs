@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    Snowflake,
+    Ctx, Snowflake,
     action::Action,
     backend::{Gateway, Webhook},
     rest::Rest,
@@ -27,6 +27,14 @@ impl Bot {
     /// Returns the REST client for this bot.
     pub(crate) fn rest(&self) -> Arc<Rest> {
         self.rest.clone()
+    }
+
+    /// Creates a one-off context for this bot.
+    ///
+    /// This context is meant to be used for processes that do not have an
+    /// associated action, such as sending a message to a channel on a schedule.
+    pub fn ctx(&self) -> Ctx {
+        Ctx::new(Arc::clone(&self.rest))
     }
 
     /// Creates a new webhook backend for this bot, with the given public key
