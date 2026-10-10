@@ -6,7 +6,7 @@ use twilight_gateway::StreamExt;
 use crate::{
     Bot,
     action::Action,
-    backend::{Dispatch, ResponseSink},
+    backend::{ResponseSink, dispatch::Dispatch},
     error::Error,
 };
 

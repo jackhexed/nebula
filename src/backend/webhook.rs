@@ -6,7 +6,7 @@ use tokio::sync::oneshot;
 use crate::{
     Bot,
     action::Action,
-    backend::{Dispatch, ResponseSink},
+    backend::{ResponseSink, dispatch::Dispatch},
 };
 
 mod tw {
