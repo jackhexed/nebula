@@ -3,8 +3,10 @@ use std::sync::Arc;
 use crate::{
     Snowflake,
     cache::Cache,
+    error::Error,
     model::{Guild, User},
     rest::Rest,
+    slash::Slash,
     snowflake::{GuildMarker, UserMarker},
 };
 
@@ -43,6 +45,16 @@ impl Ctx {
     /// Creates a user with this context.
     pub fn user(&self, user_id: impl Into<Snowflake<UserMarker>>) -> User {
         User::new(self, user_id.into())
+    }
+
+    /// Set global commands.
+    pub async fn set_global_commands(&self, commands: Vec<Slash>) -> Result<(), Error> {
+        self.rest
+            .interaction()
+            .set_global_commands(&commands.into_iter().map(Into::into).collect::<Vec<_>>())
+            .await?;
+
+        Ok(())
     }
 }
 
