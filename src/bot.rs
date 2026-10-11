@@ -77,7 +77,6 @@ where
     pub fn gateway<T>(&self, callback: fn(Action<S>) -> T) -> Gateway<T, S>
     where
         T: Future<Output = ()> + Send + 'static,
-        S: Clone + Send + 'static,
     {
         Gateway::new(self, callback)
     }
