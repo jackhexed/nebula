@@ -1,4 +1,4 @@
-use std::sync::Mutex;
+use std::{mem, sync::Mutex};
 
 use tokio::sync::oneshot;
 
@@ -31,6 +31,46 @@ impl<'action> Response<'action> {
             kind,
         }
     }
+
+    /// Creates the first response over REST.
+    async fn first(self, rest: &Rest) -> Result<(), Error> {
+        rest.interaction()
+            .create_response(self.action_id.into(), self.action_token, &self.kind.into())
+            .await?;
+
+        Ok(())
+    }
+
+    /// All responses after the initial one are sent over REST.
+    async fn after(self, rest: &Rest) -> Result<(), Error> {
+        match self.kind {
+            ResponseKind::Reply(msg) => {
+                rest.interaction()
+                    .update_response(self.action_token)
+                    .flags((&msg).into())
+                    .components(Some(&Box::from(msg)))
+                    .await?;
+            }
+
+            ResponseKind::DeferReply => {
+                panic!("cannot send a DeferReply after the initial response");
+            }
+
+            ResponseKind::Edit(msg) => {
+                rest.interaction()
+                    .update_response(self.action_token)
+                    .flags((&msg).into())
+                    .components(Some(&Box::from(msg)))
+                    .await?;
+            }
+
+            ResponseKind::DeferEdit => {
+                panic!("cannot send a DeferEdit after the initial response");
+            }
+        }
+
+        Ok(())
+    }
 }
 
 /// What an action is responded with.
@@ -41,6 +81,12 @@ pub(crate) enum ResponseKind {
     /// Acknowledge the action now and reply later. The user sees a loading
     /// state until the reply is sent.
     DeferReply,
+
+    /// Edit the original reply with a new message.
+    Edit(Msg),
+
+    /// Defer the edit of the original reply.
+    DeferEdit,
 }
 
 impl From<ResponseKind> for tw::InteractionResponse {
@@ -55,6 +101,16 @@ impl From<ResponseKind> for tw::InteractionResponse {
                 kind: tw::InteractionResponseType::DeferredChannelMessageWithSource,
                 data: None,
             },
+
+            ResponseKind::Edit(msg) => Self {
+                kind: tw::InteractionResponseType::UpdateMessage,
+                data: Some(msg.into()),
+            },
+
+            ResponseKind::DeferEdit => Self {
+                kind: tw::InteractionResponseType::DeferredUpdateMessage,
+                data: None,
+            },
         }
     }
 }
@@ -66,14 +122,16 @@ impl From<ResponseKind> for tw::InteractionResponse {
 /// sent with a `create_response` REST call, which is what the gateway backend
 /// uses.
 pub(crate) struct ResponseSink {
-    tx: Mutex<Option<oneshot::Sender<ResponseKind>>>,
+    state: Mutex<ResponseSinkState>,
 }
 
 impl ResponseSink {
     /// Creates a sink that sends through `tx`, or through the REST API if `tx`
     /// is `None`.
     pub(crate) fn new(tx: Option<oneshot::Sender<ResponseKind>>) -> Self {
-        Self { tx: Mutex::new(tx) }
+        let state = Mutex::new(ResponseSinkState::Pending(tx));
+
+        Self { state }
     }
 
     /// Sends a response.
@@ -86,19 +144,24 @@ impl ResponseSink {
     /// This function will return an error if the oneshot receiver was dropped,
     /// or if the REST call fails.
     pub(crate) async fn send(&self, rest: &Rest, response: Response<'_>) -> Result<(), Error> {
-        if let Some(tx) = self.tx.lock().unwrap().take() {
-            tx.send(response.kind)
-                .map_err(|_| Error::msg("oneshot closed unexpectedly"))
-        } else {
-            let id = response.action_id.into();
-            let token = response.action_token;
-            let response = response.kind.into();
+        let state = mem::replace(
+            &mut *self.state.lock().unwrap(),
+            ResponseSinkState::Responded,
+        );
 
-            rest.interaction()
-                .create_response(id, token, &response)
-                .await?;
+        match state {
+            ResponseSinkState::Pending(Some(tx)) => tx
+                .send(response.kind)
+                .map_err(|_| Error::msg("oneshot closed unexpectedly")),
 
-            Ok(())
+            ResponseSinkState::Pending(None) => response.first(rest).await,
+
+            ResponseSinkState::Responded => response.after(rest).await,
         }
     }
+}
+
+enum ResponseSinkState {
+    Pending(Option<oneshot::Sender<ResponseKind>>),
+    Responded,
 }

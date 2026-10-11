@@ -155,6 +155,24 @@ impl From<Msg> for tw::InteractionResponseData {
     }
 }
 
+#[doc(hidden)]
+impl From<&Msg> for tw::MessageFlags {
+    fn from(value: &Msg) -> Self {
+        if value.ephemeral {
+            tw::MessageFlags::IS_COMPONENTS_V2 | tw::MessageFlags::EPHEMERAL
+        } else {
+            tw::MessageFlags::IS_COMPONENTS_V2
+        }
+    }
+}
+
+#[doc(hidden)]
+impl From<Msg> for Box<[tw::Component]> {
+    fn from(value: Msg) -> Self {
+        value.items.into_iter().map(Into::into).collect()
+    }
+}
+
 /// An item a [`Msg`] can hold.
 ///
 /// This is rarely named directly. [`Msg::item`] takes anything converting into

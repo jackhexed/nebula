@@ -170,6 +170,28 @@ where
 
         self.sink.send(self.ctx.rest(), response).await
     }
+
+    /// Defers a reply to the action.
+    pub(crate) async fn defer_reply(&self) -> Result<(), Error> {
+        let response = Response::new(self.action_id, &self.action_token, ResponseKind::DeferReply);
+
+        self.sink.send(self.ctx.rest(), response).await
+    }
+
+    /// Edit the original response with the given message.
+    pub(crate) async fn edit(&self, msg: impl Into<Msg>) -> Result<(), Error> {
+        let msg = msg.into();
+        let response = Response::new(self.action_id, &self.action_token, ResponseKind::Edit(msg));
+
+        self.sink.send(self.ctx.rest(), response).await
+    }
+
+    /// Defers an edit to the original response.
+    pub(crate) async fn defer_edit(&self) -> Result<(), Error> {
+        let response = Response::new(self.action_id, &self.action_token, ResponseKind::DeferEdit);
+
+        self.sink.send(self.ctx.rest(), response).await
+    }
 }
 
 impl<S> From<&ActionCtx<S>> for Ctx

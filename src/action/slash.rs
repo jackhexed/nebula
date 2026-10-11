@@ -39,6 +39,11 @@ where
         self.ctx.reply(msg).await
     }
 
+    /// Defer a reply to the command.
+    pub async fn defer_reply(&self) -> Result<(), Error> {
+        self.ctx.defer_reply().await
+    }
+
     /// Returns the guild the command was run in.
     pub fn guild(&self) -> &Guild {
         self.ctx.guild()

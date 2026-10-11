@@ -34,6 +34,21 @@ where
         self.ctx.reply(msg).await
     }
 
+    /// Defer a reply to the button action.
+    pub async fn defer_reply(&self) -> Result<(), Error> {
+        self.ctx.defer_reply().await
+    }
+
+    /// Edits the original message that the button is in with the given message.
+    pub async fn edit(&self, msg: impl Into<Msg>) -> Result<(), Error> {
+        self.ctx.edit(msg).await
+    }
+
+    /// Defer an edit to the original message that the button is in.
+    pub async fn defer_edit(&self) -> Result<(), Error> {
+        self.ctx.defer_edit().await
+    }
+
     /// Returns the guild the command was run in.
     pub fn guild(&self) -> &Guild {
         self.ctx.guild()
