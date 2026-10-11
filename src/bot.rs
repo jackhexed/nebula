@@ -34,6 +34,17 @@ impl<S> Bot<S>
 where
     S: Send + Sync + 'static,
 {
+    /// Adds state to this bot, returning a new bot with the given state.
+    pub fn with_state<Sp>(self, state: Sp) -> Bot<Sp>
+    where
+        Sp: Send + Sync + 'static,
+    {
+        Bot {
+            rest: self.rest,
+            state: Arc::new(state),
+        }
+    }
+
     /// Returns the REST client for this bot.
     pub(crate) fn rest(&self) -> Arc<Rest> {
         Arc::clone(&self.rest)
